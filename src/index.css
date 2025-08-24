@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Pi theme classes for performance */
+.pi-theme-kick {
+  background-color: var(--color-2); /* Black background */
+  color: var(--color-1);            /* White text */
+}
+
+.pi-theme-hihat {
+  background-color: var(--color-1); /* White background */  
+  color: var(--color-2);            /* Black text */
+}
+
+/* Default colors */
+:root {
+  --color-1: #ffffff;
+  --color-2: #000000;
+}

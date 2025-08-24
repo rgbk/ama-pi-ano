@@ -1,0 +1,32 @@
+{
+  "tempo": 180,
+  "colors": {
+    "color1": "#FFFFFF",
+    "color2": "#000000"
+  },
+  "display": {
+    "initialPiDigits": "3.",
+    "fontSize": {
+      "mobile": "text-4xl",
+      "desktop": "text-6xl md:text-8xl"
+    }
+  },
+  "audio": {
+    "reverb": {
+      "roomSize": 0.2,
+      "dampening": 3000
+    },
+    "delay": {
+      "delayTime": "16n",
+      "feedback": 0.2
+    }
+  },
+  "ui": {
+    "tempoRange": {
+      "min": 60,
+      "max": 240
+    },
+    "showFPS": false,
+    "showSettings": false
+  }
+}

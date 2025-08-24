@@ -1,47 +1,98 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { PiGenerator } from './lib/piGenerator'
+import { AudioEngine } from './lib/audioEngine'
+import defaults from './config/defaults.json'
 // @ts-ignore - no types available for react-fps-stats
 import FPSStats from 'react-fps-stats'
 
 function App() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentDigitIndex, setCurrentDigitIndex] = useState(1) // Start at 1 to show "3."
-  const [tempo, setTempo] = useState(120) // BPM
-  const [showSettings, setShowSettings] = useState(false)
-  const [showFPS, setShowFPS] = useState(false)
-  const [color1, setColor1] = useState('#FFFFFF') // White
-  const [color2, setColor2] = useState('#000000') // Black
-  const [piDigits, setPiDigits] = useState('3.')
+  const [tempo, setTempo] = useState(defaults.tempo) // 180 BPM from defaults
+  const [showSettings, setShowSettings] = useState(defaults.ui.showSettings)
+  const [showFPS, setShowFPS] = useState(defaults.ui.showFPS)
+  const [color1, setColor1] = useState(defaults.colors.color1)
+  const [color2, setColor2] = useState(defaults.colors.color2)
+  const [piDigits, setPiDigits] = useState(defaults.display.initialPiDigits)
   
   // Pi generator instance
   const piGenerator = useRef(new PiGenerator())
   const initializedRef = useRef(false)
   
+  // Audio engine instance
+  const audioEngine = useRef(new AudioEngine())
+  
   // Generate initial digits
   useEffect(() => {
     if (!initializedRef.current) {
       initializedRef.current = true
-      // Generate first 100 digits
-      const newDigits = piGenerator.current.generateDigits(100)
-      setPiDigits('3.' + newDigits)
+      // Start with just "3." and generate as needed
+      setPiDigits('3.')
     }
   }, [])
   
-  // Generate more digits when approaching the end
+  // Generate more digits when needed (but limit total to prevent crashes)
   useEffect(() => {
-    if (currentDigitIndex > piDigits.length - 50 && piDigits.length < 10000) {
-      // Generate 100 more digits when we're within 50 digits of the end
-      const newDigits = piGenerator.current.generateDigits(100)
+    if (currentDigitIndex >= piDigits.length - 10 && piDigits.length < 500) {
+      // Generate 50 more digits when we're within 10 digits of the end
+      // Limit to 500 total digits to prevent memory issues
+      const newDigits = piGenerator.current.generateDigits(50)
       setPiDigits(prev => prev + newDigits)
     }
   }, [currentDigitIndex, piDigits.length])
+
+  // Update CSS custom properties when colors change
+  useEffect(() => {
+    document.documentElement.style.setProperty('--color-1', color1)
+    document.documentElement.style.setProperty('--color-2', color2)
+  }, [color1, color2])
+
+  // Cleanup audio engine on unmount
+  useEffect(() => {
+    return () => {
+      audioEngine.current.dispose()
+    }
+  }, [])
+
+  // Auto-scroll functionality
+  const digitDisplayRef = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    if (!digitDisplayRef.current) return
+    
+    // Get the current digit element
+    const currentDigitElement = digitDisplayRef.current.querySelector(`[data-index="${currentDigitIndex}"]`) as HTMLElement
+    
+    if (currentDigitElement) {
+      // Check if we need to scroll
+      const containerRect = digitDisplayRef.current.getBoundingClientRect()
+      const digitRect = currentDigitElement.getBoundingClientRect()
+      
+      // Scroll when digit is near bottom of viewport (leaving some margin)
+      const marginFromBottom = 200
+      
+      if (digitRect.bottom > window.innerHeight - marginFromBottom) {
+        currentDigitElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }
+    }
+  }, [currentDigitIndex])
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault()
-        setIsPlaying(!isPlaying)
+        if (!isPlaying) {
+          // Initialize audio on first play
+          audioEngine.current.initialize().then(() => {
+            setIsPlaying(true)
+          })
+        } else {
+          setIsPlaying(false)
+        }
       }
       if (e.key === 'p' || e.key === 'P') {
         e.preventDefault()
@@ -69,7 +120,13 @@ function App() {
           setIsPlaying(false) // Stop at end
           return prev
         }
-        return prev + 1
+        const newIndex = prev + 1
+        // Play audio for the new digit
+        const digit = piDigits[newIndex]
+        if (digit && digit !== '.') {
+          audioEngine.current.playDigit(digit)
+        }
+        return newIndex
       })
     }, intervalMs)
 
@@ -80,30 +137,45 @@ function App() {
   const currentDigit = piDigits[currentDigitIndex] || '3'
   
   // Determine colors based on current digit
-  // When digit 1 plays: use color1 as background, color2 as text
-  // When digit 0,2-9 plays: use color2 as background, color1 as text
-  const useColor1Background = currentDigit === '1'
-  const bgColor = useColor1Background ? color1 : color2
-  const textColor = useColor1Background ? color2 : color1
+  // When 1 plays: light theme (black text on white background) 
+  // When 0 plays: dark theme (white text on black background)
+  // When 2-9 play: keep whatever theme was last set by 0 or 1
+  const [currentTheme, setCurrentTheme] = useState('dark') // Start with dark theme
+  
+  useEffect(() => {
+    if (currentDigit === '0') {
+      setCurrentTheme('dark') // Dark theme: white text on black bg
+    } else if (currentDigit === '1') {
+      setCurrentTheme('light') // Light theme: black text on white bg
+    }
+    // For digits 2-9, keep current theme unchanged
+  }, [currentDigit])
+  
+  const useColor1Background = currentTheme === 'light'
 
   return (
     <div 
-      className="min-h-screen relative overflow-hidden transition-colors duration-300"
-      style={{ backgroundColor: bgColor }}
+      className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${
+        useColor1Background ? 'pi-theme-hihat' : 'pi-theme-kick'
+      }`}
     >
       {/* FPS Stats - toggle with 'F' key */}
       {showFPS && <FPSStats top="auto" right={20} bottom={100} left="auto" />}
+      
       {/* Main digit display area */}
-      <div className="absolute top-8 left-8 right-8 bottom-24">
-        <div 
-          className="text-6xl md:text-8xl font-mono leading-tight tracking-wider transition-colors duration-300"
-          style={{ color: textColor }}
-        >
+      <div 
+        ref={digitDisplayRef}
+        className="absolute top-8 left-8 right-8 bottom-24 overflow-auto"
+      >
+        <div className="text-6xl md:text-8xl font-mono leading-tight tracking-wider break-words pb-96">
           {piDigits.slice(0, currentDigitIndex + 1).split('').map((digit, index) => (
             <span
               key={index}
-              className={`inline-block px-2 py-1 mx-1 my-1 transition-opacity ${
-                index === currentDigitIndex ? 'opacity-100 scale-110' : 'opacity-40'
+              data-index={index}
+              className={`${
+                index === currentDigitIndex 
+                  ? 'opacity-100 font-bold' 
+                  : 'opacity-40'
               }`}
             >
               {digit}
@@ -116,7 +188,16 @@ function App() {
       <div className="fixed bottom-8 left-8 flex flex-col gap-4">
         {/* Play/Pause button */}
         <button
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={() => {
+            if (!isPlaying) {
+              // Initialize audio on first play
+              audioEngine.current.initialize().then(() => {
+                setIsPlaying(true)
+              })
+            } else {
+              setIsPlaying(false)
+            }
+          }}
           className="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors text-2xl"
           title="Play/Pause (Space)"
         >
@@ -149,8 +230,8 @@ function App() {
               </label>
               <input
                 type="range"
-                min="60"
-                max="240"
+                min={defaults.ui.tempoRange.min}
+                max={defaults.ui.tempoRange.max}
                 value={tempo}
                 onChange={(e) => setTempo(Number(e.target.value))}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
@@ -158,7 +239,7 @@ function App() {
               <div className="flex justify-between text-xs text-gray-500 mt-1">
                 <span>60</span>
                 <span>120</span>
-                <span>180</span>
+                <span className="font-bold">180</span>
                 <span>240</span>
               </div>
             </div>
