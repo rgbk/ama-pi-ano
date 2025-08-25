@@ -15,9 +15,8 @@ function App() {
   const [color1, setColor1] = useState(defaults.colors.color1)
   const [color2, setColor2] = useState(defaults.colors.color2)
   const [piDigits, setPiDigits] = useState(defaults.display.initialPiDigits)
-  const [activeTab, setActiveTab] = useState<'general' | 'percussion' | 'dark' | 'light'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'percussion' | 'dark' | 'light' | 'debug'>('general')
   const [debugEvents, setDebugEvents] = useState<string[]>([])
-  const [showDebug, setShowDebug] = useState(true)
   
   // Dark Theme Reverb State (7 parameters)
   const [darkReverbDecay, setDarkReverbDecay] = useState(3.0)
@@ -135,13 +134,14 @@ function App() {
       }
       if (e.key === 'd' || e.key === 'D') {
         e.preventDefault()
-        setShowDebug(!showDebug)
+        setShowSettings(true)
+        setActiveTab('debug')
       }
     }
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isPlaying, showSettings, showFPS, showDebug])
+  }, [isPlaying, showSettings, showFPS])
 
   // Playback timer effect
   useEffect(() => {
@@ -215,64 +215,6 @@ function App() {
       {/* FPS Stats - toggle with 'F' key */}
       {showFPS && <FPSStats top="auto" right={20} bottom={100} left="auto" />}
       
-      {/* Debug Panel */}
-      {showDebug && (
-        <div className="fixed top-4 left-4 bg-white bg-opacity-90 backdrop-blur-md text-black p-4 rounded-lg font-mono text-xs max-w-96 max-h-96 flex flex-col border border-gray-300 shadow-xl z-50">
-          <div className="flex justify-between items-center mb-3">
-            <h4 className="font-bold text-sm">🎵 Audio Debug</h4>
-            <button 
-              onClick={() => setShowDebug(false)}
-              className="text-black hover:text-red-600 text-lg leading-none cursor-pointer bg-gray-200 hover:bg-gray-300 rounded-full w-6 h-6 flex items-center justify-center transition-colors"
-              type="button"
-            >×</button>
-          </div>
-          
-          <div className="text-xs text-gray-700 mb-3 pb-2 border-b border-gray-300">
-            <div>Theme: <span className="text-orange-600 font-semibold">{currentTheme}</span></div>
-            <div>Playing: <span className={isPlaying ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>{isPlaying ? 'Yes' : 'No'}</span></div>
-            <div>Current: <span className="text-blue-600 font-semibold">{currentDigit}</span></div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto space-y-1 mb-3 bg-gray-50 p-2 rounded border">
-            {debugEvents.length === 0 ? (
-              <div className="text-gray-500 italic">No audio events yet...</div>
-            ) : (
-              debugEvents.map((event, index) => (
-                <div key={index} className="text-xs leading-tight text-gray-800 break-words">
-                  {event}
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                addDebugEvent('🔍 MANUAL TEST - button clicked!')
-                audioEngine.current.showEffectsStatus()
-              }}
-              type="button"
-              className="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
-            >
-              🎛️ Show Effects Status
-            </button>
-            <button
-              onClick={() => audioEngine.current.testMelodySynth()}
-              type="button"
-              className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
-            >
-              🧪 Test Melody Synth
-            </button>
-            <button
-              onClick={copyDebugToClipboard}
-              type="button"
-              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
-            >
-              📋 Copy to Clipboard
-            </button>
-          </div>
-        </div>
-      )}
       
       {/* Main digit display area */}
       <div 
@@ -339,7 +281,8 @@ function App() {
               { id: 'general', label: 'General' },
               { id: 'percussion', label: 'Percussion' },
               { id: 'dark', label: 'Dark' },
-              { id: 'light', label: 'Light' }
+              { id: 'light', label: 'Light' },
+              { id: 'debug', label: 'Debug' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -430,6 +373,7 @@ function App() {
                   <p><kbd>Space</kbd> - Play/Pause</p>
                   <p><kbd>P</kbd> - Settings panel</p>
                   <p><kbd>F</kbd> - Show FPS stats</p>
+                  <p><kbd>D</kbd> - Debug panel</p>
                 </div>
               </div>
             )}
@@ -772,6 +716,58 @@ function App() {
                     </div>
                   </div>
                 </details>
+              </div>
+            )}
+
+            {/* Debug Tab */}
+            {activeTab === 'debug' && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold mb-4">🎵 Audio Debug</h3>
+                
+                <div className="text-sm text-gray-700 mb-3 pb-2 border-b border-gray-300">
+                  <div>Theme: <span className="text-orange-600 font-semibold">{currentTheme}</span></div>
+                  <div>Playing: <span className={isPlaying ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>{isPlaying ? 'Yes' : 'No'}</span></div>
+                  <div>Current: <span className="text-blue-600 font-semibold">{currentDigit}</span></div>
+                </div>
+                
+                <div className="max-h-60 overflow-y-auto space-y-1 mb-3 bg-gray-50 p-2 rounded border">
+                  {debugEvents.length === 0 ? (
+                    <div className="text-gray-500 italic">No audio events yet...</div>
+                  ) : (
+                    debugEvents.map((event, index) => (
+                      <div key={index} className="text-xs leading-tight text-gray-800 break-words font-mono">
+                        {event}
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      addDebugEvent('🔍 MANUAL TEST - button clicked!')
+                      audioEngine.current.showEffectsStatus()
+                    }}
+                    type="button"
+                    className="w-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
+                  >
+                    🎛️ Show Effects Status
+                  </button>
+                  <button
+                    onClick={() => audioEngine.current.testMelodySynth()}
+                    type="button"
+                    className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
+                  >
+                    🧪 Test Melody Synth
+                  </button>
+                  <button
+                    onClick={copyDebugToClipboard}
+                    type="button"
+                    className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
+                  >
+                    📋 Copy to Clipboard
+                  </button>
+                </div>
               </div>
             )}
           </div>

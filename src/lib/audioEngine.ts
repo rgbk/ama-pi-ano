@@ -3,8 +3,8 @@ import { MembraneSynth, MetalSynth, PolySynth, Synth, getContext, now, start } f
 export class AudioEngine {
   private kickSynth: MembraneSynth
   private hihatSynth: MetalSynth
-  private melodySynthDark: Synth  // For when 0 plays - aggressive sound
-  private melodySynthLight: Synth // For when 1 plays - bright sound
+  private melodySynthDark: PolySynth<Synth>  // For when 0 plays - aggressive sound
+  private melodySynthLight: PolySynth<Synth> // For when 1 plays - bright sound
   // Dark theme reverb (kick + dark melody)
   private darkReverbNode: ConvolverNode
   private darkReverbGain: GainNode
@@ -204,7 +204,7 @@ export class AudioEngine {
       this.hihatSynth = new MetalSynth()
       this.hihatSynth.volume.value = -6 // Make sure it's audible
       // Dark theme synth - aggressive, bassy sound
-      this.melodySynthDark = new Synth({
+      this.melodySynthDark = new PolySynth(Synth, {
         oscillator: { type: 'sawtooth' },
         envelope: {
           attack: 0.01,
@@ -214,10 +214,10 @@ export class AudioEngine {
         }
       })
       this.melodySynthDark.volume.value = -6 // Make sure it's audible
-      console.log('🎹 Dark melody synth (Synth) created:', this.melodySynthDark)
+      console.log('🎹 Dark melody synth (PolySynth) created:', this.melodySynthDark)
       
       // Light theme synth - bright, melodic sound  
-      this.melodySynthLight = new Synth({
+      this.melodySynthLight = new PolySynth(Synth, {
         oscillator: { type: 'sine' },
         envelope: {
           attack: 0.08,
@@ -227,7 +227,7 @@ export class AudioEngine {
         }
       })
       this.melodySynthLight.volume.value = -6 // Make sure it's audible
-      console.log('🎹 Light melody synth (Synth) created:', this.melodySynthLight)
+      console.log('🎹 Light melody synth (PolySynth) created:', this.melodySynthLight)
       
       // Create advanced theme-based reverbs
       console.log('🎛️ Creating advanced theme reverbs...')
@@ -543,10 +543,7 @@ export class AudioEngine {
     release: number
   }) {
     if (!this.initialized || !this.melodySynthDark) return
-    this.melodySynthDark.envelope.attack = envelope.attack
-    this.melodySynthDark.envelope.decay = envelope.decay
-    this.melodySynthDark.envelope.sustain = envelope.sustain
-    this.melodySynthDark.envelope.release = envelope.release
+    this.melodySynthDark.set({ envelope })
     this.debug(`🌙 Dark synth envelope updated`)
   }
 
@@ -556,10 +553,7 @@ export class AudioEngine {
     partialCount?: number
   }) {
     if (!this.initialized || !this.melodySynthDark) return
-    this.melodySynthDark.oscillator.type = oscillator.type
-    if (oscillator.partialCount && oscillator.type === 'sawtooth') {
-      this.melodySynthDark.oscillator.partialCount = oscillator.partialCount
-    }
+    this.melodySynthDark.set({ oscillator })
     this.debug(`🌙 Dark synth oscillator: ${oscillator.type}`)
   }
 
@@ -571,10 +565,7 @@ export class AudioEngine {
     release: number
   }) {
     if (!this.initialized || !this.melodySynthLight) return
-    this.melodySynthLight.envelope.attack = envelope.attack
-    this.melodySynthLight.envelope.decay = envelope.decay
-    this.melodySynthLight.envelope.sustain = envelope.sustain
-    this.melodySynthLight.envelope.release = envelope.release
+    this.melodySynthLight.set({ envelope })
     this.debug(`☀️ Light synth envelope updated`)
   }
 
@@ -584,38 +575,35 @@ export class AudioEngine {
     partialCount?: number
   }) {
     if (!this.initialized || !this.melodySynthLight) return
-    this.melodySynthLight.oscillator.type = oscillator.type
-    if (oscillator.partialCount && oscillator.type === 'sawtooth') {
-      this.melodySynthLight.oscillator.partialCount = oscillator.partialCount
-    }
+    this.melodySynthLight.set({ oscillator })
     this.debug(`☀️ Light synth oscillator: ${oscillator.type}`)
   }
 
   // Dark synth portamento control
   setDarkSynthPortamento(portamento: number) {
     if (!this.initialized || !this.melodySynthDark) return
-    this.melodySynthDark.portamento = portamento
+    this.melodySynthDark.set({ portamento })
     this.debug(`🌙 Dark synth portamento: ${portamento}s`)
   }
 
   // Dark synth detune control
   setDarkSynthDetune(detune: number) {
     if (!this.initialized || !this.melodySynthDark) return
-    this.melodySynthDark.detune.value = detune
+    this.melodySynthDark.set({ detune })
     this.debug(`🌙 Dark synth detune: ${detune} cents`)
   }
 
   // Light synth portamento control
   setLightSynthPortamento(portamento: number) {
     if (!this.initialized || !this.melodySynthLight) return
-    this.melodySynthLight.portamento = portamento
+    this.melodySynthLight.set({ portamento })
     this.debug(`☀️ Light synth portamento: ${portamento}s`)
   }
 
   // Light synth detune control
   setLightSynthDetune(detune: number) {
     if (!this.initialized || !this.melodySynthLight) return
-    this.melodySynthLight.detune.value = detune
+    this.melodySynthLight.set({ detune })
     this.debug(`☀️ Light synth detune: ${detune} cents`)
   }
 }
