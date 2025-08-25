@@ -1,4 +1,5 @@
 import { MembraneSynth, MetalSynth, PolySynth, Synth, getContext, now, start } from 'tone'
+import { MusicTheoryEngine } from './musicTheory'
 
 export class AudioEngine {
   private kickSynth: MembraneSynth
@@ -30,9 +31,14 @@ export class AudioEngine {
   private lastTriggerTime = 0
   private currentTheme: 'dark' | 'light' = 'dark'
   private debugCallback?: (message: string) => void
+  
+  // Music theory engine for scale/chord calculations
+  private musicTheory: MusicTheoryEngine
 
   constructor() {
-    // Don't initialize anything until user interaction
+    // Initialize music theory engine
+    this.musicTheory = new MusicTheoryEngine()
+    // Don't initialize audio until user interaction
     // Will be initialized in the initialize() method
   }
 
@@ -357,12 +363,16 @@ export class AudioEngine {
         case '7':
         case '8':
         case '9':
-          // Melody notes - use current theme synth
-          const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
-          const noteIndex = parseInt(digit) - 2
+          // Melody notes - use music theory engine to determine chord/note
+          const digitNum = parseInt(digit)
+          const chordNotes = this.musicTheory.digitToChordNotes(digitNum, 4) // Use 4th octave
           const activeSynth = this.currentTheme === 'dark' ? this.melodySynthDark : this.melodySynthLight
           const synthType = this.currentTheme === 'dark' ? 'DARK(sawtooth)' : 'LIGHT(sine)'
-          const note = notes[noteIndex]
+          
+          if (!chordNotes || chordNotes.length === 0) {
+            this.debug(`❌ Digit ${digit}: Could not map to notes (invalid digit)`)
+            break
+          }
           
           if (!activeSynth) {
             this.debug(`❌ Digit ${digit}: Active synth is UNDEFINED! (theme: ${this.currentTheme})`)
@@ -370,14 +380,39 @@ export class AudioEngine {
           }
           
           try {
-            this.debug(`🔍 About to play: ${note} on ${synthType}`)
+            const isChord = chordNotes.length > 1
+            const noteDisplay = isChord ? `[${chordNotes.join(', ')}]` : chordNotes[0]
+            
+            this.debug(`🔍 About to play: ${noteDisplay} on ${synthType}`)
+            this.debug(`🔍 Scale degree: ${this.musicTheory.digitToScaleDegree(digitNum)}`)
+            this.debug(`🔍 Current settings: ${this.musicTheory.getCurrentSettings().key} ${this.musicTheory.getCurrentSettings().mode} ${this.musicTheory.getCurrentSettings().chord}`)
+            this.debug(`🔍 Chord type: ${isChord ? 'CHORD' : 'SINGLE'} (${chordNotes.length} notes)`)
             this.debug(`🔍 Synth volume: ${activeSynth.volume.value}dB`)
-            this.debug(`🔍 Synth state: ${activeSynth.state}`)
-            this.debug(`🔍 Synth type: ${activeSynth.constructor.name}`)
             
-            activeSynth.triggerAttackRelease(note, '8n', triggerTime)
+            // Calculate volume scaling based on number of notes to prevent clipping
+            const noteCount = chordNotes.length
+            const baseVolume = -6 // Our standard base volume
+            const scaledVolume = this.calculatePolyphonicVolume(baseVolume, noteCount)
             
-            this.debug(`🎼 ${digit}=${note} (${synthType}) - TRIGGERED`)
+            // Temporarily adjust synth volume for this chord
+            const originalVolume = activeSynth.volume.value
+            activeSynth.volume.rampTo(scaledVolume, 0.01, triggerTime) // Quick ramp to new volume
+            
+            this.debug(`🔊 Volume scaling: ${noteCount} notes → ${scaledVolume.toFixed(1)}dB (was ${originalVolume}dB)`)
+            
+            // Play either single note or chord
+            if (isChord) {
+              // PolySynth can handle arrays of notes for chords
+              activeSynth.triggerAttackRelease(chordNotes, '8n', triggerTime)
+            } else {
+              // Single note
+              activeSynth.triggerAttackRelease(chordNotes[0], '8n', triggerTime)
+            }
+            
+            // Restore original volume after the note duration
+            activeSynth.volume.rampTo(originalVolume, 0.1, triggerTime + 0.5) // Restore after 500ms
+            
+            this.debug(`🎼 ${digit}=${noteDisplay} (${synthType}) - TRIGGERED`)
             
             // Check if synth is making sound by checking active voices
             setTimeout(() => {
@@ -626,5 +661,101 @@ export class AudioEngine {
     if (!this.initialized || !this.melodySynthLight) return
     this.melodySynthLight.set({ detune })
     this.debug(`☀️ Light synth detune: ${detune} cents`)
+  }
+  
+  // Music theory controls
+  setMusicalKey(key: string) {
+    try {
+      this.musicTheory.setKey(key)
+      this.debug(`🎵 Key changed to: ${key}`)
+      this.debug(`🎵 New scale notes: ${this.musicTheory.getCurrentScaleNotes().join(', ')}`)
+    } catch (error) {
+      this.debug(`❌ Invalid key: ${key} - ${error}`)
+    }
+  }
+  
+  setMusicalMode(mode: string) {
+    try {
+      this.musicTheory.setMode(mode as any) // Type assertion needed due to string input
+      const settings = this.musicTheory.getCurrentSettings()
+      this.debug(`🎵 Mode changed to: ${mode} (${settings.modeCharacter})`)
+      this.debug(`🎵 New scale notes: ${settings.scaleNotes.join(', ')}`)
+    } catch (error) {
+      this.debug(`❌ Invalid mode: ${mode} - ${error}`)
+    }
+  }
+  
+  setMusicalScale(scale: string) {
+    this.musicTheory.setScale(scale)
+    this.debug(`🎵 Scale type changed to: ${scale}`)
+  }
+  
+  setMusicalChord(chord: string) {
+    this.musicTheory.setChord(chord)
+    this.debug(`🎵 Chord type changed to: ${chord}`)
+  }
+  
+  // Get current music theory settings
+  getMusicTheorySettings() {
+    return this.musicTheory.getCurrentSettings()
+  }
+  
+  // Calculate volume scaling for polyphonic playback
+  private calculatePolyphonicVolume(baseVolume: number, noteCount: number): number {
+    if (noteCount <= 1) {
+      return baseVolume // No scaling needed for single notes
+    }
+    
+    // Logarithmic volume scaling - more musical than linear
+    // Each additional note reduces volume by ~3dB (half the perceived loudness)
+    const volumeReduction = Math.log2(noteCount) * 3
+    const scaledVolume = baseVolume - volumeReduction
+    
+    // Ensure we don't go below -30dB (too quiet) or above 0dB (clipping)
+    return Math.max(-30, Math.min(0, scaledVolume))
+  }
+  
+  // Test the music theory mapping
+  testMusicTheoryMapping() {
+    if (!this.initialized) {
+      this.debug('❌ Cannot test - audio engine not initialized')
+      return
+    }
+    
+    this.debug('🎵 Testing music theory mapping:')
+    this.musicTheory.testDigitMapping()
+    
+    // Test playing each chord/note
+    const activeSynth = this.currentTheme === 'dark' ? this.melodySynthDark : this.melodySynthLight
+    const settings = this.musicTheory.getCurrentSettings()
+    this.debug(`🎵 Playing ${settings.chord} progression (digits 2-9):`)
+    
+    for (let digit = 2; digit <= 9; digit++) {
+      const chordNotes = this.musicTheory.digitToChordNotes(digit, 4)
+      if (chordNotes && chordNotes.length > 0) {
+        const isChord = chordNotes.length > 1
+        const noteDisplay = isChord ? `[${chordNotes.join(', ')}]` : chordNotes[0]
+        
+        setTimeout(() => {
+          // Apply volume scaling for test too
+          const noteCount = chordNotes.length
+          const scaledVolume = this.calculatePolyphonicVolume(-6, noteCount)
+          const originalVolume = activeSynth.volume.value
+          
+          activeSynth.volume.rampTo(scaledVolume, 0.01)
+          
+          if (isChord) {
+            activeSynth.triggerAttackRelease(chordNotes, '4n')
+          } else {
+            activeSynth.triggerAttackRelease(chordNotes[0], '4n')
+          }
+          
+          // Restore volume
+          setTimeout(() => activeSynth.volume.rampTo(originalVolume, 0.1), 500)
+          
+          this.debug(`🎵 ${digit} → ${noteDisplay} (vol: ${scaledVolume.toFixed(1)}dB)`)
+        }, (digit - 2) * 500) // 500ms between chords (longer for chords)
+      }
+    }
   }
 }

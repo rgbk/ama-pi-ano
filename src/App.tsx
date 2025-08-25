@@ -36,6 +36,12 @@ function App() {
   const [lightReverbEarlyLate, setLightReverbEarlyLate] = useState(50)
   const [lightReverbStereoWidth, setLightReverbStereoWidth] = useState(100)
   
+  // Musical Theory Settings
+  const [selectedKey, setSelectedKey] = useState('C')
+  const [selectedMode, setSelectedMode] = useState('ionian')
+  const [selectedScale, setSelectedScale] = useState('major')
+  const [selectedChord, setSelectedChord] = useState('triads')
+  
   // Pi generator instance
   const piGenerator = useRef(new PiGenerator())
   const initializedRef = useRef(false)
@@ -381,10 +387,126 @@ function App() {
                   </div>
                 </div>
                 
+                {/* Musical Theory Controls */}
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="text-lg font-semibold mb-3">🎵 Musical Settings</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Key Selection */}
+                    <div>
+                      <label htmlFor="key-select" className="block text-sm font-medium mb-2">
+                        Key
+                      </label>
+                      <select
+                        id="key-select"
+                        value={selectedKey}
+                        onChange={(e) => {
+                          setSelectedKey(e.target.value)
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setMusicalKey(e.target.value)
+                          }
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                      >
+                        <option value="C">C</option>
+                        <option value="C#">C#</option>
+                        <option value="D">D</option>
+                        <option value="D#">D#</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="F#">F#</option>
+                        <option value="G">G</option>
+                        <option value="G#">G#</option>
+                        <option value="A">A</option>
+                        <option value="A#">A#</option>
+                        <option value="B">B</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Root note for scales and chords</p>
+                    </div>
+
+                    {/* Mode Selection */}
+                    <div>
+                      <label htmlFor="mode-select" className="block text-sm font-medium mb-2">
+                        Mode
+                      </label>
+                      <select
+                        id="mode-select"
+                        value={selectedMode}
+                        onChange={(e) => {
+                          setSelectedMode(e.target.value)
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setMusicalMode(e.target.value)
+                          }
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                      >
+                        <option value="ionian">Ionian (bright, happy)</option>
+                        <option value="dorian">Dorian (bittersweet, jazzy)</option>
+                        <option value="phrygian">Phrygian (dark, exotic)</option>
+                        <option value="lydian">Lydian (ethereal, dreamy)</option>
+                        <option value="mixolydian">Mixolydian (bluesy, groovy)</option>
+                        <option value="aeolian">Aeolian (sad, melancholic)</option>
+                        <option value="locrian">Locrian (unstable, tense)</option>
+                        <option value="harmonic">Harmonic Minor</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Musical scale character and intervals</p>
+                    </div>
+
+                    {/* Scale Type Selection */}
+                    <div>
+                      <label htmlFor="scale-select" className="block text-sm font-medium mb-2">
+                        Scale
+                      </label>
+                      <select
+                        id="scale-select"
+                        value={selectedScale}
+                        onChange={(e) => {
+                          setSelectedScale(e.target.value)
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setMusicalScale(e.target.value)
+                          }
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                      >
+                        <option value="major">Major</option>
+                        <option value="minor">Natural Minor</option>
+                        <option value="pentatonic">Pentatonic</option>
+                        <option value="blues">Blues</option>
+                        <option value="chromatic">Chromatic</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Base scale structure for melody</p>
+                    </div>
+
+                    {/* Chord Type Selection */}
+                    <div>
+                      <label htmlFor="chord-select" className="block text-sm font-medium mb-2">
+                        Chord
+                      </label>
+                      <select
+                        id="chord-select"
+                        value={selectedChord}
+                        onChange={(e) => {
+                          setSelectedChord(e.target.value)
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setMusicalChord(e.target.value)
+                          }
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm"
+                      >
+                        <option value="triads">Basic Triads</option>
+                        <option value="seventh">Seventh Chords</option>
+                        <option value="extended">Extended Chords</option>
+                        <option value="none">Single Notes Only</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Harmony complexity for polyphonic play</p>
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="text-sm text-gray-600 border-t pt-3">
                   <p><strong>0:</strong> Kick Drum</p>
                   <p><strong>1:</strong> Hi-Hat</p>
-                  <p><strong>2-9:</strong> Musical Notes</p>
+                  <p><strong>2-9:</strong> Musical Notes (mapped to selected scale)</p>
                 </div>
                 
                 <div className="text-xs text-gray-500 border-t pt-3">
@@ -792,6 +914,19 @@ function App() {
                     className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
                   >
                     📋 Copy to Clipboard
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (audioEngine.current.initialized) {
+                        audioEngine.current.testMusicTheoryMapping()
+                      } else {
+                        addDebugEvent('❌ Audio engine not initialized - click play first!')
+                      }
+                    }}
+                    type="button"
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 active:bg-yellow-800 text-white text-xs py-2 px-3 rounded transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
+                  >
+                    🎵 Test Music Theory
                   </button>
                 </div>
               </div>
