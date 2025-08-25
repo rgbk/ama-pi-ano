@@ -213,7 +213,7 @@ export class AudioEngine {
           release: 0.6
         }
       })
-      this.melodySynthDark.volume.value = -6 // Make sure it's audible
+      this.melodySynthDark.volume.value = -3 // Make melody more prominent
       console.log('🎹 Dark melody synth (PolySynth) created:', this.melodySynthDark)
       
       // Light theme synth - bright, melodic sound  
@@ -226,7 +226,7 @@ export class AudioEngine {
           release: 1.0
         }
       })
-      this.melodySynthLight.volume.value = -6 // Make sure it's audible
+      this.melodySynthLight.volume.value = -3 // Make melody more prominent
       console.log('🎹 Light melody synth (PolySynth) created:', this.melodySynthLight)
       
       // Create advanced theme-based reverbs
