@@ -18,18 +18,23 @@ function App() {
   const [debugEvents, setDebugEvents] = useState<string[]>([])
   const [showDebug, setShowDebug] = useState(true)
   
-  // Effect state for UI sliders
-  const [darkReverbRoom, setDarkReverbRoom] = useState(0.4)
-  const [darkReverbWet, setDarkReverbWet] = useState(0.5)
-  const [darkDelayTime, setDarkDelayTime] = useState('8n')
-  const [darkDelayFeedback, setDarkDelayFeedback] = useState(0.4)
-  const [darkDelayWet, setDarkDelayWet] = useState(0.3)
+  // Dark Theme Reverb State (7 parameters)
+  const [darkReverbDecay, setDarkReverbDecay] = useState(3.0)
+  const [darkReverbWet, setDarkReverbWet] = useState(50)
+  const [darkReverbPreDelay, setDarkReverbPreDelay] = useState(0)
+  const [darkReverbRoomSize, setDarkReverbRoomSize] = useState(2.0)
+  const [darkReverbDamping, setDarkReverbDamping] = useState(4000)
+  const [darkReverbEarlyLate, setDarkReverbEarlyLate] = useState(50)
+  const [darkReverbStereoWidth, setDarkReverbStereoWidth] = useState(100)
   
-  const [lightReverbRoom, setLightReverbRoom] = useState(0.2)
-  const [lightReverbWet, setLightReverbWet] = useState(0.3)
-  const [lightDelayTime, setLightDelayTime] = useState('16n')
-  const [lightDelayFeedback, setLightDelayFeedback] = useState(0.2)
-  const [lightDelayWet, setLightDelayWet] = useState(0.2)
+  // Light Theme Reverb State (7 parameters) 
+  const [lightReverbDecay, setLightReverbDecay] = useState(1.5)
+  const [lightReverbWet, setLightReverbWet] = useState(30)
+  const [lightReverbPreDelay, setLightReverbPreDelay] = useState(0)
+  const [lightReverbRoomSize, setLightReverbRoomSize] = useState(2.0)
+  const [lightReverbDamping, setLightReverbDamping] = useState(6000)
+  const [lightReverbEarlyLate, setLightReverbEarlyLate] = useState(50)
+  const [lightReverbStereoWidth, setLightReverbStereoWidth] = useState(100)
   
   // Pi generator instance
   const piGenerator = useRef(new PiGenerator())
@@ -543,234 +548,142 @@ function App() {
             {/* Effects Tab */}
             {activeTab === 'effects' && (
               <div className="space-y-4">
-                <h3 className="text-xl font-bold mb-4">Effects</h3>
-                <p className="text-sm text-gray-600 mb-4">Separate effects for Dark (sawtooth) and Light (sine) themes</p>
+                <h3 className="text-xl font-bold mb-4">Advanced Reverb Effects</h3>
+                <p className="text-sm text-gray-600 mb-4">7 parameters each for Dark (kick + dark melody) and Light (hihat + light melody) themes</p>
                 
-                {/* Dark Theme Effects */}
+                {/* Dark Theme Effects - 7 Parameters */}
                 <div className="bg-gray-800 text-white p-3 rounded-lg space-y-3">
-                  <h4 className="font-semibold text-yellow-300">🌙 Dark Theme Effects</h4>
+                  <h4 className="font-semibold text-yellow-300">🌙 Dark Theme Reverb (Kick + Dark Melody)</h4>
                   
                   <div>
-                    <label htmlFor="dark-reverb-room" className="block text-xs mb-1">
-                      Reverb Room: {darkReverbRoom}
+                    <label htmlFor="dark-reverb-decay" className="block text-xs mb-1">
+                      1. Decay Time: {darkReverbDecay.toFixed(1)}s
                     </label>
-                    <input
-                      id="dark-reverb-room"
-                      type="range"
-                      min="0.1"
-                      max="0.9"
-                      step="0.1"
-                      value={darkReverbRoom}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setDarkReverbRoom(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setDarkReverbRoomSize(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="dark-reverb-decay" type="range" min="0.1" max="10" step="0.1" value={darkReverbDecay}
+                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbDecay(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbDecay(val); }}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
                     <label htmlFor="dark-reverb-wet" className="block text-xs mb-1">
-                      Reverb Wet: {darkReverbWet}
+                      2. Wet/Dry Mix: {darkReverbWet}%
                     </label>
-                    <input
-                      id="dark-reverb-wet"
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={darkReverbWet}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setDarkReverbWet(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setDarkReverbWet(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="dark-reverb-wet" type="range" min="0" max="100" step="1" value={darkReverbWet}
+                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbWet(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbWet(val); }}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
-                    <label htmlFor="dark-delay-time" className="block text-xs mb-1">
-                      Delay Time: {darkDelayTime}
+                    <label htmlFor="dark-reverb-predelay" className="block text-xs mb-1">
+                      3. Pre-delay: {darkReverbPreDelay}ms
                     </label>
-                    <select
-                      id="dark-delay-time"
-                      value={darkDelayTime}
-                      onChange={(e) => {
-                        setDarkDelayTime(e.target.value)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setDarkDelayTime(e.target.value)
-                        }
-                      }}
-                      className="w-full p-1 border rounded text-black text-xs"
-                    >
-                      <option value="8n">8th note</option>
-                      <option value="16n">16th note</option>
-                      <option value="32n">32nd note</option>
-                    </select>
+                    <input id="dark-reverb-predelay" type="range" min="0" max="200" step="1" value={darkReverbPreDelay}
+                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbPreDelay(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbPreDelay(val); }}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
-                    <label htmlFor="dark-delay-feedback" className="block text-xs mb-1">
-                      Delay Feedback: {darkDelayFeedback}
+                    <label htmlFor="dark-reverb-roomsize" className="block text-xs mb-1">
+                      4. Room Size: {darkReverbRoomSize.toFixed(1)}
                     </label>
-                    <input
-                      id="dark-delay-feedback"
-                      type="range"
-                      min="0"
-                      max="0.8"
-                      step="0.1"
-                      value={darkDelayFeedback}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setDarkDelayFeedback(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setDarkDelayFeedback(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="dark-reverb-roomsize" type="range" min="0.5" max="10.0" step="0.1" value={darkReverbRoomSize}
+                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbRoomSize(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbRoomSize(val); }}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
-                    <label htmlFor="dark-delay-wet" className="block text-xs mb-1">
-                      Delay Wet: {darkDelayWet}
+                    <label htmlFor="dark-reverb-damping" className="block text-xs mb-1">
+                      5. Damping: {darkReverbDamping}Hz
                     </label>
-                    <input
-                      id="dark-delay-wet"
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={darkDelayWet}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setDarkDelayWet(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setDarkDelayWet(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="dark-reverb-damping" type="range" min="0" max="8000" step="100" value={darkReverbDamping}
+                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbDamping(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbDamping(val); }}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="dark-reverb-earlylate" className="block text-xs mb-1">
+                      6. Early/Late Balance: {darkReverbEarlyLate}%
+                    </label>
+                    <input id="dark-reverb-earlylate" type="range" min="0" max="100" step="1" value={darkReverbEarlyLate}
+                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbEarlyLate(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbEarlyLateBalance(val); }}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="dark-reverb-width" className="block text-xs mb-1">
+                      7. Stereo Width: {darkReverbStereoWidth}%
+                    </label>
+                    <input id="dark-reverb-width" type="range" min="0" max="200" step="1" value={darkReverbStereoWidth}
+                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbStereoWidth(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbStereoWidth(val); }}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
                   </div>
                 </div>
 
-                {/* Light Theme Effects */}
+                {/* Light Theme Effects - 7 Parameters */}
                 <div className="bg-blue-50 text-gray-800 p-3 rounded-lg space-y-3 border">
-                  <h4 className="font-semibold text-blue-600">☀️ Light Theme Effects</h4>
+                  <h4 className="font-semibold text-blue-600">☀️ Light Theme Reverb (Hi-hat + Light Melody)</h4>
                   
                   <div>
-                    <label htmlFor="light-reverb-room" className="block text-xs mb-1">
-                      Reverb Room: {lightReverbRoom}
+                    <label htmlFor="light-reverb-decay" className="block text-xs mb-1">
+                      1. Decay Time: {lightReverbDecay.toFixed(1)}s
                     </label>
-                    <input
-                      id="light-reverb-room"
-                      type="range"
-                      min="0.1"
-                      max="0.9"
-                      step="0.1"
-                      value={lightReverbRoom}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setLightReverbRoom(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setLightReverbRoomSize(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="light-reverb-decay" type="range" min="0.1" max="10" step="0.1" value={lightReverbDecay}
+                      onChange={(e) => { const val = Number(e.target.value); setLightReverbDecay(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbDecay(val); }}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
                     <label htmlFor="light-reverb-wet" className="block text-xs mb-1">
-                      Reverb Wet: {lightReverbWet}
+                      2. Wet/Dry Mix: {lightReverbWet}%
                     </label>
-                    <input
-                      id="light-reverb-wet"
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={lightReverbWet}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setLightReverbWet(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setLightReverbWet(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="light-reverb-wet" type="range" min="0" max="100" step="1" value={lightReverbWet}
+                      onChange={(e) => { const val = Number(e.target.value); setLightReverbWet(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbWet(val); }}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
-                    <label htmlFor="light-delay-time" className="block text-xs mb-1">
-                      Delay Time: {lightDelayTime}
+                    <label htmlFor="light-reverb-predelay" className="block text-xs mb-1">
+                      3. Pre-delay: {lightReverbPreDelay}ms
                     </label>
-                    <select
-                      id="light-delay-time"
-                      value={lightDelayTime}
-                      onChange={(e) => {
-                        setLightDelayTime(e.target.value)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setLightDelayTime(e.target.value)
-                        }
-                      }}
-                      className="w-full p-1 border rounded text-xs"
-                    >
-                      <option value="8n">8th note</option>
-                      <option value="16n">16th note</option>
-                      <option value="32n">32nd note</option>
-                    </select>
+                    <input id="light-reverb-predelay" type="range" min="0" max="200" step="1" value={lightReverbPreDelay}
+                      onChange={(e) => { const val = Number(e.target.value); setLightReverbPreDelay(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbPreDelay(val); }}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
-                    <label htmlFor="light-delay-feedback" className="block text-xs mb-1">
-                      Delay Feedback: {lightDelayFeedback}
+                    <label htmlFor="light-reverb-roomsize" className="block text-xs mb-1">
+                      4. Room Size: {lightReverbRoomSize.toFixed(1)}
                     </label>
-                    <input
-                      id="light-delay-feedback"
-                      type="range"
-                      min="0"
-                      max="0.8"
-                      step="0.1"
-                      value={lightDelayFeedback}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setLightDelayFeedback(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setLightDelayFeedback(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="light-reverb-roomsize" type="range" min="0.5" max="10.0" step="0.1" value={lightReverbRoomSize}
+                      onChange={(e) => { const val = Number(e.target.value); setLightReverbRoomSize(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbRoomSize(val); }}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
                   </div>
 
                   <div>
-                    <label htmlFor="light-delay-wet" className="block text-xs mb-1">
-                      Delay Wet: {lightDelayWet}
+                    <label htmlFor="light-reverb-damping" className="block text-xs mb-1">
+                      5. Damping: {lightReverbDamping}Hz
                     </label>
-                    <input
-                      id="light-delay-wet"
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={lightDelayWet}
-                      onChange={(e) => {
-                        const val = Number(e.target.value)
-                        setLightDelayWet(val)
-                        if (audioEngine.current.initialized) {
-                          audioEngine.current.setLightDelayWet(val)
-                        }
-                      }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input id="light-reverb-damping" type="range" min="0" max="8000" step="100" value={lightReverbDamping}
+                      onChange={(e) => { const val = Number(e.target.value); setLightReverbDamping(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbDamping(val); }}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="light-reverb-earlylate" className="block text-xs mb-1">
+                      6. Early/Late Balance: {lightReverbEarlyLate}%
+                    </label>
+                    <input id="light-reverb-earlylate" type="range" min="0" max="100" step="1" value={lightReverbEarlyLate}
+                      onChange={(e) => { const val = Number(e.target.value); setLightReverbEarlyLate(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbEarlyLateBalance(val); }}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="light-reverb-width" className="block text-xs mb-1">
+                      7. Stereo Width: {lightReverbStereoWidth}%
+                    </label>
+                    <input id="light-reverb-width" type="range" min="0" max="200" step="1" value={lightReverbStereoWidth}
+                      onChange={(e) => { const val = Number(e.target.value); setLightReverbStereoWidth(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbStereoWidth(val); }}
+                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
                   </div>
                 </div>
               </div>

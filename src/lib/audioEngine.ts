@@ -1,18 +1,31 @@
-import { MembraneSynth, MetalSynth, PolySynth, Synth, Reverb, FeedbackDelay, getContext, now, start } from 'tone'
+import { MembraneSynth, MetalSynth, PolySynth, Synth, getContext, now, start } from 'tone'
 
 export class AudioEngine {
   private kickSynth: MembraneSynth
   private hihatSynth: MetalSynth
   private melodySynthDark: Synth  // For when 0 plays - aggressive sound
   private melodySynthLight: Synth // For when 1 plays - bright sound
-  private kickReverb: Reverb
-  private kickDelay: FeedbackDelay
-  private hihatReverb: Reverb
-  private hihatDelay: FeedbackDelay
-  private darkReverb: Reverb
-  private darkDelay: FeedbackDelay
-  private lightReverb: Reverb
-  private lightDelay: FeedbackDelay
+  // Dark theme reverb (kick + dark melody)
+  private darkReverbNode: ConvolverNode
+  private darkReverbGain: GainNode
+  private darkReverbFilter: BiquadFilterNode
+  private darkEarlyReflections: ConvolverNode
+  private darkLateReflections: ConvolverNode
+  private darkEarlyGain: GainNode
+  private darkLateGain: GainNode
+  private darkPreDelayNode: DelayNode
+  private darkStereoWidener: StereoPannerNode
+  
+  // Light theme reverb (hihat + light melody)  
+  private lightReverbNode: ConvolverNode
+  private lightReverbGain: GainNode
+  private lightReverbFilter: BiquadFilterNode
+  private lightEarlyReflections: ConvolverNode
+  private lightLateReflections: ConvolverNode
+  private lightEarlyGain: GainNode
+  private lightLateGain: GainNode
+  private lightPreDelayNode: DelayNode
+  private lightStereoWidener: StereoPannerNode
   private initialized = false
   private lastTriggerTime = 0
   private currentTheme: 'dark' | 'light' = 'dark'
@@ -23,17 +36,159 @@ export class AudioEngine {
     // Will be initialized in the initialize() method
   }
 
-  private setupRouting() {
-    // SIMPLE TEST - just connect melody synths to ONE shared reverb
-    const testReverb = new Reverb(2.0)
-    testReverb.wet.value = 0.8 // Very wet to hear it clearly
+  private createAdvancedReverbImpulse(
+    decayTime: number,
+    damping: number,
+    earlyReflectionRatio: number
+  ) {
+    const audioContext = getContext().rawContext as AudioContext
+    const sampleRate = audioContext.sampleRate
+    const length = sampleRate * decayTime
     
+    // Create full reverb impulse
+    const fullImpulse = audioContext.createBuffer(2, length, sampleRate)
+    
+    // Create early reflections (first 20% of impulse)
+    const earlyLength = Math.floor(length * 0.2)
+    const earlyImpulse = audioContext.createBuffer(2, earlyLength, sampleRate)
+    
+    // Create late reflections (remaining 80%)  
+    const lateLength = length - earlyLength
+    const lateImpulse = audioContext.createBuffer(2, lateLength, sampleRate)
+    
+    for (let channel = 0; channel < 2; channel++) {
+      const fullData = fullImpulse.getChannelData(channel)
+      const earlyData = earlyImpulse.getChannelData(channel)
+      const lateData = lateImpulse.getChannelData(channel)
+      
+      // Generate full impulse with damping
+      for (let i = 0; i < length; i++) {
+        const t = i / length
+        const decay = Math.pow(1 - t, 2)
+        
+        // Apply damping (high-frequency rolloff)
+        const dampingFactor = damping > 0 ? Math.exp(-t * damping / 1000) : 1
+        
+        const sample = (Math.random() * 2 - 1) * decay * dampingFactor
+        fullData[i] = sample
+        
+        // Split into early/late
+        if (i < earlyLength) {
+          earlyData[i] = sample
+        } else {
+          lateData[i - earlyLength] = sample
+        }
+      }
+    }
+    
+    return { fullImpulse, earlyImpulse, lateImpulse }
+  }
+  
+  private createThemeReverbs() {
+    const audioContext = getContext().rawContext as AudioContext
+    
+    // DARK THEME REVERB (more dramatic)
+    this.darkReverbNode = audioContext.createConvolver()
+    this.darkReverbGain = audioContext.createGain()
+    this.darkReverbFilter = audioContext.createBiquadFilter()
+    this.darkEarlyReflections = audioContext.createConvolver()
+    this.darkLateReflections = audioContext.createConvolver()
+    this.darkEarlyGain = audioContext.createGain()
+    this.darkLateGain = audioContext.createGain()
+    this.darkPreDelayNode = audioContext.createDelay(0.2)
+    this.darkStereoWidener = audioContext.createStereoPanner()
+    
+    // Dark defaults (more dramatic)
+    this.darkReverbGain.gain.value = 0.5 // 50% wet
+    this.darkReverbFilter.type = 'lowpass'
+    this.darkReverbFilter.frequency.value = 4000 // 4kHz damping
+    this.darkEarlyGain.gain.value = 0.5 // 50% early/late balance
+    this.darkLateGain.gain.value = 0.5
+    this.darkPreDelayNode.delayTime.value = 0.0 // 0ms pre-delay
+    this.darkStereoWidener.pan.value = 0 // center (100% width)
+    
+    // LIGHT THEME REVERB (more subtle)
+    this.lightReverbNode = audioContext.createConvolver()
+    this.lightReverbGain = audioContext.createGain()
+    this.lightReverbFilter = audioContext.createBiquadFilter()
+    this.lightEarlyReflections = audioContext.createConvolver()
+    this.lightLateReflections = audioContext.createConvolver()
+    this.lightEarlyGain = audioContext.createGain()
+    this.lightLateGain = audioContext.createGain()
+    this.lightPreDelayNode = audioContext.createDelay(0.2)
+    this.lightStereoWidener = audioContext.createStereoPanner()
+    
+    // Light defaults (more subtle)
+    this.lightReverbGain.gain.value = 0.3 // 30% wet
+    this.lightReverbFilter.type = 'lowpass'
+    this.lightReverbFilter.frequency.value = 6000 // 6kHz damping (brighter)
+    this.lightEarlyGain.gain.value = 0.5 // 50% early/late balance
+    this.lightLateGain.gain.value = 0.5
+    this.lightPreDelayNode.delayTime.value = 0.0 // 0ms pre-delay
+    this.lightStereoWidener.pan.value = 0 // center (100% width)
+    
+    // Generate impulse responses
+    const darkImpulses = this.createAdvancedReverbImpulse(3.0, 2000, 0.5) // 3s decay, 2kHz damping
+    const lightImpulses = this.createAdvancedReverbImpulse(1.5, 4000, 0.5) // 1.5s decay, 4kHz damping
+    
+    this.darkReverbNode.buffer = darkImpulses.fullImpulse
+    this.darkEarlyReflections.buffer = darkImpulses.earlyImpulse
+    this.darkLateReflections.buffer = darkImpulses.lateImpulse
+    
+    this.lightReverbNode.buffer = lightImpulses.fullImpulse
+    this.lightEarlyReflections.buffer = lightImpulses.earlyImpulse  
+    this.lightLateReflections.buffer = lightImpulses.lateImpulse
+    
+    this.debug('🎛️ Advanced dark/light reverbs created')
+  }
+
+  private setupAdvancedRouting() {
+    const audioContext = getContext().rawContext as AudioContext
+    this.debug('🔌 Setting up advanced reverb routing...')
+    
+    // DARK THEME ROUTING (kick + dark melody)
+    // Pre-delay -> Early/Late -> Filter -> Stereo -> Gain -> Destination
+    this.darkPreDelayNode.connect(this.darkEarlyReflections)
+    this.darkPreDelayNode.connect(this.darkLateReflections)
+    
+    this.darkEarlyReflections.connect(this.darkEarlyGain)
+    this.darkLateReflections.connect(this.darkLateGain)
+    
+    this.darkEarlyGain.connect(this.darkReverbFilter)
+    this.darkLateGain.connect(this.darkReverbFilter)
+    
+    this.darkReverbFilter.connect(this.darkStereoWidener)
+    this.darkStereoWidener.connect(this.darkReverbGain)
+    this.darkReverbGain.connect(audioContext.destination)
+    
+    // LIGHT THEME ROUTING (hihat + light melody)
+    this.lightPreDelayNode.connect(this.lightEarlyReflections)
+    this.lightPreDelayNode.connect(this.lightLateReflections)
+    
+    this.lightEarlyReflections.connect(this.lightEarlyGain)
+    this.lightLateReflections.connect(this.lightLateGain)
+    
+    this.lightEarlyGain.connect(this.lightReverbFilter)
+    this.lightLateGain.connect(this.lightReverbFilter)
+    
+    this.lightReverbFilter.connect(this.lightStereoWidener)
+    this.lightStereoWidener.connect(this.lightReverbGain)
+    this.lightReverbGain.connect(audioContext.destination)
+    
+    // Connect synths to their respective theme reverbs
+    this.kickSynth.connect(this.darkPreDelayNode) // Kick uses dark reverb
+    this.melodySynthDark.connect(this.darkPreDelayNode) // Dark melody uses dark reverb
+    
+    this.hihatSynth.connect(this.lightPreDelayNode) // Hihat uses light reverb  
+    this.melodySynthLight.connect(this.lightPreDelayNode) // Light melody uses light reverb
+    
+    // Also connect dry signals directly
     this.kickSynth.toDestination()
     this.hihatSynth.toDestination()
-    this.melodySynthDark.connect(testReverb).toDestination()
-    this.melodySynthLight.connect(testReverb).toDestination()
+    this.melodySynthDark.toDestination()
+    this.melodySynthLight.toDestination()
     
-    console.log('🔌 SIMPLE TEST - melody synths connected to shared reverb')
+    this.debug('🔌 Advanced reverb routing complete!')
   }
 
   async initialize() {
@@ -74,55 +229,14 @@ export class AudioEngine {
       this.melodySynthLight.volume.value = -6 // Make sure it's audible
       console.log('🎹 Light melody synth (Synth) created:', this.melodySynthLight)
       
-      // Initialize separate effects for each synth
-      console.log('🎛️ Creating separate effects...')
+      // Create advanced theme-based reverbs
+      console.log('🎛️ Creating advanced theme reverbs...')
+      this.createThemeReverbs()
+      console.log('🎛️ Advanced theme reverbs created')
       
-      // Kick effects
-      this.kickReverb = new Reverb(2.0) // 2 second decay
-      this.kickReverb.wet.value = 0.4
-      this.kickDelay = new FeedbackDelay('8n', 0.3) // 8th note delay, 0.3 feedback
-      this.kickDelay.wet.value = 0.2
-      console.log('🥁 Kick effects created - Reverb wet:', this.kickReverb.wet.value)
       
-      // Hi-hat effects
-      this.hihatReverb = new Reverb(1.0) // 1 second decay
-      this.hihatReverb.wet.value = 0.3
-      this.hihatDelay = new FeedbackDelay('16n', 0.15) // 16th note delay, 0.15 feedback
-      this.hihatDelay.wet.value = 0.1
-      console.log('🎩 Hi-hat effects created - Reverb wet:', this.hihatReverb.wet.value)
-      
-      // Dark theme melody effects
-      this.darkReverb = new Reverb(3.0) // 3 second decay
-      this.debug(`🔍 Dark reverb created: ${!!this.darkReverb}`)
-      this.debug(`🔍 Dark reverb wet exists: ${!!this.darkReverb.wet}`)
-      try {
-        this.darkReverb.wet.value = 0.5
-        this.debug(`🔍 Dark reverb wet set to: ${this.darkReverb.wet.value}`)
-      } catch (e) {
-        this.debug(`❌ Dark reverb wet failed: ${e}`)
-      }
-      
-      this.darkDelay = new FeedbackDelay('8n', 0.4) // 8th note delay, 0.4 feedback
-      this.debug(`🔍 Dark delay created: ${!!this.darkDelay}`)
-      this.debug(`🔍 Dark delay wet exists: ${!!this.darkDelay.wet}`)
-      try {
-        this.darkDelay.wet.value = 0.3
-        this.debug(`🔍 Dark delay wet set to: ${this.darkDelay.wet.value}`)
-      } catch (e) {
-        this.debug(`❌ Dark delay wet failed: ${e}`)
-      }
-      
-      this.debug(`🌙 Dark effects ready - Rev:${this.darkReverb.wet.value} Del:${this.darkDelay.wet.value}`)
-      
-      // Light theme melody effects  
-      this.lightReverb = new Reverb(1.5) // 1.5 second decay
-      this.lightReverb.wet.value = 0.3
-      this.lightDelay = new FeedbackDelay('16n', 0.2) // 16th note delay, 0.2 feedback
-      this.lightDelay.wet.value = 0.2
-      console.log('☀️ Light melody effects created - Reverb wet:', this.lightReverb.wet.value, 'Delay wet:', this.lightDelay.wet.value)
-      
-      // Setup routing
-      this.setupRouting()
+      // Setup advanced routing  
+      this.setupAdvancedRouting()
       
       // Start Tone.js properly
       console.log('Starting Tone.js...')
@@ -169,34 +283,16 @@ export class AudioEngine {
     }
     
     try {
-      this.debug('🎛️ EFFECTS STATUS:')
-      this.debug(`🔍 Dark reverb exists: ${!!this.darkReverb}`)
-      if (this.darkReverb) {
-        this.debug(`🔍 Dark reverb properties: ${Object.keys(this.darkReverb).join(', ')}`)
-        this.debug(`🔍 Dark reverb wet exists: ${!!this.darkReverb.wet}`)
-        this.debug(`🔍 Dark reverb roomSize exists: ${!!this.darkReverb.roomSize}`)
-        if (this.darkReverb.wet && this.darkReverb.wet.value !== undefined) {
-          this.debug(`🌙 Dark reverb wet: ${this.darkReverb.wet.value}`)
-        }
-        if (this.darkReverb.decay !== undefined) {
-          this.debug(`🌙 Dark reverb decay: ${this.darkReverb.decay}`)
-        }
+      this.debug('🎛️ ADVANCED REVERB STATUS:')
+      this.debug(`🔍 Dark reverb exists: ${!!this.darkReverbGain}`)
+      this.debug(`🔍 Light reverb exists: ${!!this.lightReverbGain}`)
+      if (this.darkReverbGain) {
+        this.debug(`🌙 Dark reverb mix: ${this.darkReverbGain.gain.value}`)
+      }
+      if (this.lightReverbGain) {
+        this.debug(`☀️ Light reverb mix: ${this.lightReverbGain.gain.value}`)
       }
       
-      this.debug(`🔍 Dark delay exists: ${!!this.darkDelay}`)
-      if (this.darkDelay) {
-        this.debug(`🌙 Dark delay wet: ${this.darkDelay.wet.value}, feedback: ${this.darkDelay.feedback.value}`)
-      }
-      
-      this.debug(`🔍 Light reverb exists: ${!!this.lightReverb}`)
-      if (this.lightReverb) {
-        this.debug(`☀️ Light reverb wet: ${this.lightReverb.wet.value}, room: ${this.lightReverb.roomSize.value}`)
-      }
-      
-      this.debug(`🔍 Light delay exists: ${!!this.lightDelay}`)
-      if (this.lightDelay) {
-        this.debug(`☀️ Light delay wet: ${this.lightDelay.wet.value}, feedback: ${this.lightDelay.feedback.value}`)
-      }
       
       this.debug(`🎵 Current theme: ${this.currentTheme}`)
     } catch (error) {
@@ -287,150 +383,140 @@ export class AudioEngine {
     if (this.hihatSynth) this.hihatSynth.dispose()  
     if (this.melodySynthDark) this.melodySynthDark.dispose()
     if (this.melodySynthLight) this.melodySynthLight.dispose()
-    if (this.kickReverb) this.kickReverb.dispose()
-    if (this.kickDelay) this.kickDelay.dispose()
-    if (this.hihatReverb) this.hihatReverb.dispose()
-    if (this.hihatDelay) this.hihatDelay.dispose()
-    if (this.darkReverb) this.darkReverb.dispose()
-    if (this.darkDelay) this.darkDelay.dispose()
-    if (this.lightReverb) this.lightReverb.dispose()
-    if (this.lightDelay) this.lightDelay.dispose()
+    // Disconnect dark reverb chain
+    if (this.darkReverbNode) this.darkReverbNode.disconnect()
+    if (this.darkReverbGain) this.darkReverbGain.disconnect()
+    if (this.darkReverbFilter) this.darkReverbFilter.disconnect()
+    if (this.darkEarlyReflections) this.darkEarlyReflections.disconnect()
+    if (this.darkLateReflections) this.darkLateReflections.disconnect()
+    if (this.darkEarlyGain) this.darkEarlyGain.disconnect()
+    if (this.darkLateGain) this.darkLateGain.disconnect()
+    if (this.darkPreDelayNode) this.darkPreDelayNode.disconnect()
+    if (this.darkStereoWidener) this.darkStereoWidener.disconnect()
+    
+    // Disconnect light reverb chain
+    if (this.lightReverbNode) this.lightReverbNode.disconnect()
+    if (this.lightReverbGain) this.lightReverbGain.disconnect()
+    if (this.lightReverbFilter) this.lightReverbFilter.disconnect()
+    if (this.lightEarlyReflections) this.lightEarlyReflections.disconnect()
+    if (this.lightLateReflections) this.lightLateReflections.disconnect()
+    if (this.lightEarlyGain) this.lightEarlyGain.disconnect()
+    if (this.lightLateGain) this.lightLateGain.disconnect()
+    if (this.lightPreDelayNode) this.lightPreDelayNode.disconnect()
+    if (this.lightStereoWidener) this.lightStereoWidener.disconnect()
     this.initialized = false
   }
 
-  // Dark theme effect controls  
+  // DARK THEME REVERB CONTROLS (7 parameters)
   setDarkReverbDecay(decay: number) {
-    if (!this.initialized) {
-      this.debug('❌ Dark reverb decay: Audio not initialized')
-      return
-    }
-    this.darkReverb.decay = decay
-    this.debug(`🌙 Dark reverb decay set to: ${decay}`)
+    if (!this.initialized) return
+    // Regenerate impulse with new decay time
+    const impulses = this.createAdvancedReverbImpulse(decay, 2000, 0.5)
+    this.darkReverbNode.buffer = impulses.fullImpulse
+    this.darkEarlyReflections.buffer = impulses.earlyImpulse
+    this.darkLateReflections.buffer = impulses.lateImpulse
+    this.debug(`🌙 Dark decay: ${decay}s`)
   }
 
   setDarkReverbWet(wet: number) {
-    if (!this.initialized) {
-      this.debug('❌ Dark reverb wet: Audio not initialized')
-      return
-    }
-    this.darkReverb.wet.value = wet
-    this.debug(`🌙 Dark reverb wet set to: ${wet}`)
+    if (!this.initialized) return
+    this.darkReverbGain.gain.value = wet / 100 // Convert 0-100 to 0-1
+    this.debug(`🌙 Dark wet: ${wet}%`)
   }
 
-  setDarkDelayTime(time: string) {
-    if (!this.initialized) {
-      this.debug('❌ Dark delay time: Audio not initialized')
-      return
-    }
-    this.darkDelay.delayTime.value = time
-    this.debug(`🌙 Dark delay time set to: ${time}`)
+  setDarkReverbPreDelay(preDelay: number) {
+    if (!this.initialized) return
+    this.darkPreDelayNode.delayTime.value = preDelay / 1000 // Convert ms to seconds
+    this.debug(`🌙 Dark pre-delay: ${preDelay}ms`)
   }
 
-  setDarkDelayFeedback(feedback: number) {
-    if (!this.initialized) {
-      this.debug('❌ Dark delay feedback: Audio not initialized')
-      return
-    }
-    this.darkDelay.feedback.value = feedback
-    this.debug(`🌙 Dark delay feedback set to: ${feedback}`)
+  setDarkReverbRoomSize(roomSize: number) {
+    if (!this.initialized) return
+    // Regenerate impulse with new room size (affects decay time)
+    const impulses = this.createAdvancedReverbImpulse(roomSize, 2000, 0.5)
+    this.darkReverbNode.buffer = impulses.fullImpulse
+    this.darkEarlyReflections.buffer = impulses.earlyImpulse
+    this.darkLateReflections.buffer = impulses.lateImpulse
+    this.debug(`🌙 Dark room size: ${roomSize}`)
   }
 
-  setDarkDelayWet(wet: number) {
-    if (!this.initialized) {
-      this.debug('❌ Dark delay wet: Audio not initialized')
-      return
-    }
-    this.darkDelay.wet.value = wet
-    this.debug(`🌙 Dark delay wet set to: ${wet}`)
+  setDarkReverbDamping(damping: number) {
+    if (!this.initialized) return
+    this.darkReverbFilter.frequency.value = damping
+    this.debug(`🌙 Dark damping: ${damping}Hz`)
   }
 
-  // Light theme effect controls
-  setLightReverbRoomSize(size: number) {
-    if (!this.initialized) {
-      this.debug('❌ Light reverb room: Audio not initialized')
-      return
-    }
-    this.lightReverb.roomSize.value = size
-    this.debug(`☀️ Light reverb room size set to: ${size}`)
+  setDarkReverbEarlyLateBalance(balance: number) {
+    if (!this.initialized) return
+    const early = balance / 100 // 0-1
+    const late = 1 - early
+    this.darkEarlyGain.gain.value = early
+    this.darkLateGain.gain.value = late
+    this.debug(`🌙 Dark early/late: ${balance}%`)
+  }
+
+  setDarkReverbStereoWidth(width: number) {
+    if (!this.initialized) return
+    // Convert 0-200% to stereo panner range
+    const panValue = (width - 100) / 100 // 0%=−1, 100%=0, 200%=1
+    this.darkStereoWidener.pan.value = Math.max(-1, Math.min(1, panValue))
+    this.debug(`🌙 Dark width: ${width}%`)
+  }
+
+  // LIGHT THEME REVERB CONTROLS (7 parameters)  
+  setLightReverbDecay(decay: number) {
+    if (!this.initialized) return
+    const impulses = this.createAdvancedReverbImpulse(decay, 4000, 0.5)
+    this.lightReverbNode.buffer = impulses.fullImpulse
+    this.lightEarlyReflections.buffer = impulses.earlyImpulse
+    this.lightLateReflections.buffer = impulses.lateImpulse
+    this.debug(`☀️ Light decay: ${decay}s`)
   }
 
   setLightReverbWet(wet: number) {
-    if (!this.initialized) {
-      this.debug('❌ Light reverb wet: Audio not initialized')
-      return
-    }
-    this.lightReverb.wet.value = wet
-    this.debug(`☀️ Light reverb wet set to: ${wet}`)
+    if (!this.initialized) return
+    this.lightReverbGain.gain.value = wet / 100
+    this.debug(`☀️ Light wet: ${wet}%`)
   }
 
-  setLightDelayTime(time: string) {
-    if (!this.initialized) {
-      this.debug('❌ Light delay time: Audio not initialized')
-      return
-    }
-    this.lightDelay.delayTime.value = time
-    this.debug(`☀️ Light delay time set to: ${time}`)
+  setLightReverbPreDelay(preDelay: number) {
+    if (!this.initialized) return
+    this.lightPreDelayNode.delayTime.value = preDelay / 1000
+    this.debug(`☀️ Light pre-delay: ${preDelay}ms`)
   }
 
-  setLightDelayFeedback(feedback: number) {
-    if (!this.initialized) {
-      this.debug('❌ Light delay feedback: Audio not initialized')
-      return
-    }
-    this.lightDelay.feedback.value = feedback
-    this.debug(`☀️ Light delay feedback set to: ${feedback}`)
+  setLightReverbRoomSize(roomSize: number) {
+    if (!this.initialized) return
+    // Regenerate impulse with new room size (affects decay time)
+    const impulses = this.createAdvancedReverbImpulse(roomSize, 4000, 0.5)
+    this.lightReverbNode.buffer = impulses.fullImpulse
+    this.lightEarlyReflections.buffer = impulses.earlyImpulse
+    this.lightLateReflections.buffer = impulses.lateImpulse
+    this.debug(`☀️ Light room size: ${roomSize}`)
   }
 
-  setLightDelayWet(wet: number) {
-    if (!this.initialized) {
-      this.debug('❌ Light delay wet: Audio not initialized')
-      return
-    }
-    this.lightDelay.wet.value = wet
-    this.debug(`☀️ Light delay wet set to: ${wet}`)
+  setLightReverbDamping(damping: number) {
+    if (!this.initialized) return
+    this.lightReverbFilter.frequency.value = damping
+    this.debug(`☀️ Light damping: ${damping}Hz`)
   }
 
-  // Kick effect controls
-  setKickReverbRoomSize(size: number) {
-    this.kickReverb.roomSize.value = size
+  setLightReverbEarlyLateBalance(balance: number) {
+    if (!this.initialized) return
+    const early = balance / 100
+    const late = 1 - early
+    this.lightEarlyGain.gain.value = early
+    this.lightLateGain.gain.value = late
+    this.debug(`☀️ Light early/late: ${balance}%`)
   }
 
-  setKickReverbWet(wet: number) {
-    this.kickReverb.wet.value = wet
+  setLightReverbStereoWidth(width: number) {
+    if (!this.initialized) return
+    const panValue = (width - 100) / 100
+    this.lightStereoWidener.pan.value = Math.max(-1, Math.min(1, panValue))
+    this.debug(`☀️ Light width: ${width}%`)
   }
 
-  setKickDelayTime(time: string) {
-    this.kickDelay.delayTime.value = time
-  }
-
-  setKickDelayFeedback(feedback: number) {
-    this.kickDelay.feedback.value = feedback
-  }
-
-  setKickDelayWet(wet: number) {
-    this.kickDelay.wet.value = wet
-  }
-
-  // Hi-hat effect controls
-  setHihatReverbRoomSize(size: number) {
-    this.hihatReverb.roomSize.value = size
-  }
-
-  setHihatReverbWet(wet: number) {
-    this.hihatReverb.wet.value = wet
-  }
-
-  setHihatDelayTime(time: string) {
-    this.hihatDelay.delayTime.value = time
-  }
-
-  setHihatDelayFeedback(feedback: number) {
-    this.hihatDelay.feedback.value = feedback
-  }
-
-  setHihatDelayWet(wet: number) {
-    this.hihatDelay.wet.value = wet
-  }
 
   // Synth controls
   setKickPitchDecay(decay: number) {
