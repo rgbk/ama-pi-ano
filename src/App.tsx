@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { PiGenerator } from './lib/piGenerator'
 import { AudioEngine } from './lib/audioEngine'
 import { SynthControls } from './components/SynthControls'
@@ -101,7 +101,6 @@ function App() {
     
     if (currentDigitElement) {
       // Check if we need to scroll
-      const containerRect = digitDisplayRef.current.getBoundingClientRect()
       const digitRect = currentDigitElement.getBoundingClientRect()
       
       // Scroll when digit is near bottom of viewport (leaving some margin)

@@ -1,4 +1,4 @@
-import { Scale, Note, Chord } from 'tonal'
+import { Scale, Note } from 'tonal'
 
 // Musical modes with their interval patterns (8 notes including octave)
 export const MODES = {
@@ -78,7 +78,6 @@ export class MusicTheoryEngine {
   // Get the current scale notes based on key and mode
   getCurrentScaleNotes(): string[] {
     const intervals = MODES[this.currentMode].intervals
-    const rootNote = this.currentKey + '4' // Default to 4th octave
     
     try {
       // Use Tonal.js to generate scale

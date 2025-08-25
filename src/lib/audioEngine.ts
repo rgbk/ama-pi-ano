@@ -2,32 +2,32 @@ import { MembraneSynth, MetalSynth, PolySynth, Synth, getContext, now, start } f
 import { MusicTheoryEngine } from './musicTheory'
 
 export class AudioEngine {
-  private kickSynth: MembraneSynth
-  private hihatSynth: MetalSynth
-  private melodySynthDark: PolySynth<Synth>  // For when 0 plays - aggressive sound
-  private melodySynthLight: PolySynth<Synth> // For when 1 plays - bright sound
+  private kickSynth!: MembraneSynth
+  private hihatSynth!: MetalSynth
+  private melodySynthDark!: PolySynth<Synth>  // For when 0 plays - aggressive sound
+  private melodySynthLight!: PolySynth<Synth> // For when 1 plays - bright sound
   // Dark theme reverb (kick + dark melody)
-  private darkReverbNode: ConvolverNode
-  private darkReverbGain: GainNode
-  private darkReverbFilter: BiquadFilterNode
-  private darkEarlyReflections: ConvolverNode
-  private darkLateReflections: ConvolverNode
-  private darkEarlyGain: GainNode
-  private darkLateGain: GainNode
-  private darkPreDelayNode: DelayNode
-  private darkStereoWidener: StereoPannerNode
+  private darkReverbNode!: ConvolverNode
+  private darkReverbGain!: GainNode
+  private darkReverbFilter!: BiquadFilterNode
+  private darkEarlyReflections!: ConvolverNode
+  private darkLateReflections!: ConvolverNode
+  private darkEarlyGain!: GainNode
+  private darkLateGain!: GainNode
+  private darkPreDelayNode!: DelayNode
+  private darkStereoWidener!: StereoPannerNode
   
   // Light theme reverb (hihat + light melody)  
-  private lightReverbNode: ConvolverNode
-  private lightReverbGain: GainNode
-  private lightReverbFilter: BiquadFilterNode
-  private lightEarlyReflections: ConvolverNode
-  private lightLateReflections: ConvolverNode
-  private lightEarlyGain: GainNode
-  private lightLateGain: GainNode
-  private lightPreDelayNode: DelayNode
-  private lightStereoWidener: StereoPannerNode
-  private initialized = false
+  private lightReverbNode!: ConvolverNode
+  private lightReverbGain!: GainNode
+  private lightReverbFilter!: BiquadFilterNode
+  private lightEarlyReflections!: ConvolverNode
+  private lightLateReflections!: ConvolverNode
+  private lightEarlyGain!: GainNode
+  private lightLateGain!: GainNode
+  private lightPreDelayNode!: DelayNode
+  private lightStereoWidener!: StereoPannerNode
+  public initialized = false
   private lastTriggerTime = 0
   private currentTheme: 'dark' | 'light' = 'dark'
   private debugCallback?: (message: string) => void
@@ -45,7 +45,7 @@ export class AudioEngine {
   private createAdvancedReverbImpulse(
     decayTime: number,
     damping: number,
-    earlyReflectionRatio: number
+    _earlyReflectionRatio: number
   ) {
     const audioContext = getContext().rawContext as AudioContext
     const sampleRate = audioContext.sampleRate
@@ -222,7 +222,7 @@ export class AudioEngine {
       this.melodySynthDark.volume.value = -6 // Balanced with kick/hihat
       console.log('🎹 Dark melody synth (PolySynth) created:', this.melodySynthDark)
       this.debug(`🔍 Dark PolySynth volume: ${this.melodySynthDark.volume.value}dB`)
-      this.debug(`🔍 Dark PolySynth state: ${this.melodySynthDark.state}`)
+      this.debug(`🔍 Dark PolySynth state: ${(this.melodySynthDark as any).state}`)
       
       // Light theme synth - bright, melodic sound  
       this.melodySynthLight = new PolySynth(Synth, {
@@ -237,7 +237,7 @@ export class AudioEngine {
       this.melodySynthLight.volume.value = -6 // Balanced with kick/hihat
       console.log('🎹 Light melody synth (PolySynth) created:', this.melodySynthLight)
       this.debug(`🔍 Light PolySynth volume: ${this.melodySynthLight.volume.value}dB`)
-      this.debug(`🔍 Light PolySynth state: ${this.melodySynthLight.state}`)
+      this.debug(`🔍 Light PolySynth state: ${(this.melodySynthLight as any).state}`)
       
       // Create advanced theme-based reverbs
       console.log('🎛️ Creating advanced theme reverbs...')
@@ -275,7 +275,7 @@ export class AudioEngine {
     const testSynth = this.currentTheme === 'dark' ? this.melodySynthDark : this.melodySynthLight
     this.debug(`🧪 Testing ${this.currentTheme} melody synth directly...`)
     this.debug(`🔍 Synth volume: ${testSynth.volume.value}dB`)
-    this.debug(`🔍 Synth state: ${testSynth.state}`)
+    this.debug(`🔍 Synth state: ${(testSynth as any).state}`)
     
     try {
       testSynth.triggerAttackRelease('C4', '2n')

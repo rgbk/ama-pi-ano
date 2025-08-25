@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/draggablenumberinput.tsx","./src/components/envelopevisualizer.tsx","./src/components/synthcontrols.tsx","./src/lib/audioengine.ts","./src/lib/musictheory.ts","./src/lib/pigenerator.ts","./src/lib/utils.ts"],"version":"5.9.2"}
