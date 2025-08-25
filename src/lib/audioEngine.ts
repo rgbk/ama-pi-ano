@@ -534,4 +534,60 @@ export class AudioEngine {
   setHihatFrequency(frequency: number) {
     this.hihatSynth.frequency.value = frequency
   }
+
+  // Dark synth envelope controls
+  setDarkSynthEnvelope(envelope: {
+    attack: number
+    decay: number
+    sustain: number
+    release: number
+  }) {
+    if (!this.initialized || !this.melodySynthDark) return
+    this.melodySynthDark.envelope.attack = envelope.attack
+    this.melodySynthDark.envelope.decay = envelope.decay
+    this.melodySynthDark.envelope.sustain = envelope.sustain
+    this.melodySynthDark.envelope.release = envelope.release
+    this.debug(`🌙 Dark synth envelope updated`)
+  }
+
+  // Dark synth oscillator controls
+  setDarkSynthOscillator(oscillator: {
+    type: 'sine' | 'square' | 'sawtooth' | 'triangle'
+    partialCount?: number
+  }) {
+    if (!this.initialized || !this.melodySynthDark) return
+    this.melodySynthDark.oscillator.type = oscillator.type
+    if (oscillator.partialCount && oscillator.type === 'sawtooth') {
+      this.melodySynthDark.oscillator.partialCount = oscillator.partialCount
+    }
+    this.debug(`🌙 Dark synth oscillator: ${oscillator.type}`)
+  }
+
+  // Light synth envelope controls
+  setLightSynthEnvelope(envelope: {
+    attack: number
+    decay: number
+    sustain: number
+    release: number
+  }) {
+    if (!this.initialized || !this.melodySynthLight) return
+    this.melodySynthLight.envelope.attack = envelope.attack
+    this.melodySynthLight.envelope.decay = envelope.decay
+    this.melodySynthLight.envelope.sustain = envelope.sustain
+    this.melodySynthLight.envelope.release = envelope.release
+    this.debug(`☀️ Light synth envelope updated`)
+  }
+
+  // Light synth oscillator controls
+  setLightSynthOscillator(oscillator: {
+    type: 'sine' | 'square' | 'sawtooth' | 'triangle'
+    partialCount?: number
+  }) {
+    if (!this.initialized || !this.melodySynthLight) return
+    this.melodySynthLight.oscillator.type = oscillator.type
+    if (oscillator.partialCount && oscillator.type === 'sawtooth') {
+      this.melodySynthLight.oscillator.partialCount = oscillator.partialCount
+    }
+    this.debug(`☀️ Light synth oscillator: ${oscillator.type}`)
+  }
 }

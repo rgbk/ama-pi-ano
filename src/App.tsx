@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { PiGenerator } from './lib/piGenerator'
 import { AudioEngine } from './lib/audioEngine'
+import { SynthControls } from './components/SynthControls'
 import defaults from './config/defaults.json'
 // @ts-ignore - no types available for react-fps-stats
 import FPSStats from 'react-fps-stats'
@@ -14,7 +15,7 @@ function App() {
   const [color1, setColor1] = useState(defaults.colors.color1)
   const [color2, setColor2] = useState(defaults.colors.color2)
   const [piDigits, setPiDigits] = useState(defaults.display.initialPiDigits)
-  const [activeTab, setActiveTab] = useState<'general' | 'kick' | 'hihat' | 'effects'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'percussion' | 'dark' | 'light'>('general')
   const [debugEvents, setDebugEvents] = useState<string[]>([])
   const [showDebug, setShowDebug] = useState(true)
   
@@ -216,7 +217,7 @@ function App() {
       
       {/* Debug Panel */}
       {showDebug && (
-        <div className="fixed top-4 right-4 bg-white bg-opacity-90 backdrop-blur-md text-black p-4 rounded-lg font-mono text-xs max-w-96 max-h-96 flex flex-col border border-gray-300 shadow-xl z-50">
+        <div className="fixed top-4 left-4 bg-white bg-opacity-90 backdrop-blur-md text-black p-4 rounded-lg font-mono text-xs max-w-96 max-h-96 flex flex-col border border-gray-300 shadow-xl z-50">
           <div className="flex justify-between items-center mb-3">
             <h4 className="font-bold text-sm">🎵 Audio Debug</h4>
             <button 
@@ -336,9 +337,9 @@ function App() {
           <div className="flex border-b border-gray-200">
             {[
               { id: 'general', label: 'General' },
-              { id: 'kick', label: 'Kick (0)' },
-              { id: 'hihat', label: 'Hi-hat (1)' },
-              { id: 'effects', label: 'Effects' }
+              { id: 'percussion', label: 'Percussion' },
+              { id: 'dark', label: 'Dark' },
+              { id: 'light', label: 'Light' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -433,259 +434,324 @@ function App() {
               </div>
             )}
 
-            {/* Kick Drum Tab */}
-            {activeTab === 'kick' && (
+            {/* Percussion Tab - Combined Kick and Hi-hat */}
+            {activeTab === 'percussion' && (
               <div className="space-y-4">
-                <h3 className="text-xl font-bold mb-4">Kick Drum (0)</h3>
-                <p className="text-sm text-gray-600 mb-4">Controls for the kick drum sound when digit 0 plays</p>
+                <h3 className="text-xl font-bold mb-4">Percussion Settings</h3>
                 
-                <div>
-                  <label htmlFor="kick-pitch-decay" className="block text-sm font-medium mb-2">
-                    Pitch Decay: 0.05
-                  </label>
-                  <input
-                    id="kick-pitch-decay"
-                    name="kickPitchDecay"
-                    type="range"
-                    min="0.01"
-                    max="0.2"
-                    step="0.01"
-                    defaultValue="0.05"
-                    onChange={(e) => {
-                      if (audioEngine.current.initialized) {
-                        audioEngine.current.setKickPitchDecay(Number(e.target.value))
-                      }
-                    }}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Controls how quickly the pitch drops
-                  </div>
-                </div>
+                {/* Kick Drum Section */}
+                <details open className="border border-gray-200 rounded-lg">
+                  <summary className="px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between">
+                    <span className="font-semibold text-sm">🥁 Kick Drum (0)</span>
+                  </summary>
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <label htmlFor="kick-pitch-decay" className="block text-sm font-medium mb-2">
+                        Pitch Decay: 0.05
+                      </label>
+                      <input
+                        id="kick-pitch-decay"
+                        name="kickPitchDecay"
+                        type="range"
+                        min="0.01"
+                        max="0.2"
+                        step="0.01"
+                        defaultValue="0.05"
+                        onChange={(e) => {
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setKickPitchDecay(Number(e.target.value))
+                          }
+                        }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Controls how quickly the pitch drops
+                      </div>
+                    </div>
 
-                <div>
-                  <label htmlFor="kick-octaves" className="block text-sm font-medium mb-2">
-                    Octaves: 10
-                  </label>
-                  <input
-                    id="kick-octaves"
-                    name="kickOctaves"
-                    type="range"
-                    min="1"
-                    max="20"
-                    step="1"
-                    defaultValue="10"
-                    onChange={(e) => {
-                      if (audioEngine.current.initialized) {
-                        audioEngine.current.setKickOctaves(Number(e.target.value))
-                      }
-                    }}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Number of octaves the pitch envelope drops
+                    <div>
+                      <label htmlFor="kick-octaves" className="block text-sm font-medium mb-2">
+                        Octaves: 10
+                      </label>
+                      <input
+                        id="kick-octaves"
+                        name="kickOctaves"
+                        type="range"
+                        min="1"
+                        max="20"
+                        step="1"
+                        defaultValue="10"
+                        onChange={(e) => {
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setKickOctaves(Number(e.target.value))
+                          }
+                        }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Number of octaves the pitch envelope drops
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </details>
+
+                {/* Hi-hat Section */}
+                <details open className="border border-gray-200 rounded-lg">
+                  <summary className="px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between">
+                    <span className="font-semibold text-sm">🎩 Hi-hat (1)</span>
+                  </summary>
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <label htmlFor="hihat-resonance" className="block text-sm font-medium mb-2">
+                        Resonance: 300
+                      </label>
+                      <input
+                        id="hihat-resonance"
+                        name="hihatResonance"
+                        type="range"
+                        min="100"
+                        max="1000"
+                        step="10"
+                        defaultValue="300"
+                        onChange={(e) => {
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setHihatResonance(Number(e.target.value))
+                          }
+                        }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Controls the metallic resonance
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="hihat-frequency" className="block text-sm font-medium mb-2">
+                        Frequency: 200Hz
+                      </label>
+                      <input
+                        id="hihat-frequency"
+                        name="hihatFrequency"
+                        type="range"
+                        min="100"
+                        max="500"
+                        step="5"
+                        defaultValue="200"
+                        onChange={(e) => {
+                          if (audioEngine.current.initialized) {
+                            audioEngine.current.setHihatFrequency(Number(e.target.value))
+                          }
+                        }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Base frequency of the metallic sound
+                      </div>
+                    </div>
+                  </div>
+                </details>
               </div>
             )}
 
-            {/* Hi-hat Tab */}
-            {activeTab === 'hihat' && (
+            {/* Dark Tab - Dark synth and reverb settings */}
+            {activeTab === 'dark' && (
               <div className="space-y-4">
-                <h3 className="text-xl font-bold mb-4">Hi-hat (1)</h3>
-                <p className="text-sm text-gray-600 mb-4">Controls for the hi-hat sound when digit 1 plays</p>
+                <h3 className="text-xl font-bold mb-4">🌙 Dark Theme</h3>
+                <p className="text-sm text-gray-600 mb-4">Controls for dark melody (2-9) and kick drum reverb</p>
                 
-                <div>
-                  <label htmlFor="hihat-resonance" className="block text-sm font-medium mb-2">
-                    Resonance: 300
-                  </label>
-                  <input
-                    id="hihat-resonance"
-                    name="hihatResonance"
-                    type="range"
-                    min="100"
-                    max="1000"
-                    step="10"
-                    defaultValue="300"
-                    onChange={(e) => {
-                      if (audioEngine.current.initialized) {
-                        audioEngine.current.setHihatResonance(Number(e.target.value))
-                      }
-                    }}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Controls the metallic resonance
+                {/* Synth Section */}
+                <details open className="border border-gray-800 rounded-lg">
+                  <summary className="px-4 py-3 bg-gray-800 text-white cursor-pointer hover:bg-gray-700 transition-colors">
+                    <span className="font-semibold text-sm">🎹 Synthesizer</span>
+                  </summary>
+                  <div className="p-4 bg-gray-50">
+                    <SynthControls
+                      synthType="dark"
+                      onEnvelopeChange={(envelope) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setDarkSynthEnvelope(envelope)
+                        }
+                      }}
+                      onOscillatorChange={(oscillator) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setDarkSynthOscillator(oscillator)
+                        }
+                      }}
+                    />
                   </div>
-                </div>
+                </details>
 
-                <div>
-                  <label htmlFor="hihat-frequency" className="block text-sm font-medium mb-2">
-                    Frequency: 200Hz
-                  </label>
-                  <input
-                    id="hihat-frequency"
-                    name="hihatFrequency"
-                    type="range"
-                    min="100"
-                    max="500"
-                    step="5"
-                    defaultValue="200"
-                    onChange={(e) => {
-                      if (audioEngine.current.initialized) {
-                        audioEngine.current.setHihatFrequency(Number(e.target.value))
-                      }
-                    }}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Base frequency of the metallic sound
+                {/* Reverb Section */}
+                <details open className="border border-gray-800 rounded-lg">
+                  <summary className="px-4 py-3 bg-gray-800 text-white cursor-pointer hover:bg-gray-700 transition-colors">
+                    <span className="font-semibold text-sm">🌊 Reverb</span>
+                  </summary>
+                  <div className="p-4 space-y-3 bg-gray-50">
+                    <div>
+                      <label htmlFor="dark-reverb-decay" className="block text-sm font-medium mb-1">
+                        Decay Time: {darkReverbDecay.toFixed(1)}s
+                      </label>
+                      <input id="dark-reverb-decay" type="range" min="0.1" max="10" step="0.1" value={darkReverbDecay}
+                        onChange={(e) => { const val = Number(e.target.value); setDarkReverbDecay(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbDecay(val); }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="dark-reverb-wet" className="block text-sm font-medium mb-1">
+                        Wet/Dry Mix: {darkReverbWet}%
+                      </label>
+                      <input id="dark-reverb-wet" type="range" min="0" max="100" step="1" value={darkReverbWet}
+                        onChange={(e) => { const val = Number(e.target.value); setDarkReverbWet(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbWet(val); }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="dark-reverb-predelay" className="block text-sm font-medium mb-1">
+                        Pre-delay: {darkReverbPreDelay}ms
+                      </label>
+                      <input id="dark-reverb-predelay" type="range" min="0" max="200" step="1" value={darkReverbPreDelay}
+                        onChange={(e) => { const val = Number(e.target.value); setDarkReverbPreDelay(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbPreDelay(val); }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="dark-reverb-roomsize" className="block text-sm font-medium mb-1">
+                        Room Size: {darkReverbRoomSize.toFixed(1)}
+                      </label>
+                      <input id="dark-reverb-roomsize" type="range" min="0.5" max="10.0" step="0.1" value={darkReverbRoomSize}
+                        onChange={(e) => { const val = Number(e.target.value); setDarkReverbRoomSize(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbRoomSize(val); }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="dark-reverb-damping" className="block text-sm font-medium mb-1">
+                        Damping: {darkReverbDamping}Hz
+                      </label>
+                      <input id="dark-reverb-damping" type="range" min="0" max="8000" step="100" value={darkReverbDamping}
+                        onChange={(e) => { const val = Number(e.target.value); setDarkReverbDamping(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbDamping(val); }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="dark-reverb-earlylate" className="block text-sm font-medium mb-1">
+                        Early/Late Balance: {darkReverbEarlyLate}%
+                      </label>
+                      <input id="dark-reverb-earlylate" type="range" min="0" max="100" step="1" value={darkReverbEarlyLate}
+                        onChange={(e) => { const val = Number(e.target.value); setDarkReverbEarlyLate(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbEarlyLateBalance(val); }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="dark-reverb-width" className="block text-sm font-medium mb-1">
+                        Stereo Width: {darkReverbStereoWidth}%
+                      </label>
+                      <input id="dark-reverb-width" type="range" min="0" max="200" step="1" value={darkReverbStereoWidth}
+                        onChange={(e) => { const val = Number(e.target.value); setDarkReverbStereoWidth(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbStereoWidth(val); }}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
                   </div>
-                </div>
+                </details>
               </div>
             )}
 
-            {/* Effects Tab */}
-            {activeTab === 'effects' && (
+            {/* Light Tab - Light synth and reverb settings */}
+            {activeTab === 'light' && (
               <div className="space-y-4">
-                <h3 className="text-xl font-bold mb-4">Advanced Reverb Effects</h3>
-                <p className="text-sm text-gray-600 mb-4">7 parameters each for Dark (kick + dark melody) and Light (hihat + light melody) themes</p>
+                <h3 className="text-xl font-bold mb-4">☀️ Light Theme</h3>
+                <p className="text-sm text-gray-600 mb-4">Controls for light melody (2-9) and hi-hat reverb</p>
                 
-                {/* Dark Theme Effects - 7 Parameters */}
-                <div className="bg-gray-800 text-white p-3 rounded-lg space-y-3">
-                  <h4 className="font-semibold text-yellow-300">🌙 Dark Theme Reverb (Kick + Dark Melody)</h4>
-                  
-                  <div>
-                    <label htmlFor="dark-reverb-decay" className="block text-xs mb-1">
-                      1. Decay Time: {darkReverbDecay.toFixed(1)}s
-                    </label>
-                    <input id="dark-reverb-decay" type="range" min="0.1" max="10" step="0.1" value={darkReverbDecay}
-                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbDecay(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbDecay(val); }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
+                {/* Synth Section */}
+                <details open className="border border-blue-200 rounded-lg">
+                  <summary className="px-4 py-3 bg-blue-100 text-blue-900 cursor-pointer hover:bg-blue-200 transition-colors">
+                    <span className="font-semibold text-sm">🎹 Synthesizer</span>
+                  </summary>
+                  <div className="p-4 bg-blue-50">
+                    <SynthControls
+                      synthType="light"
+                      onEnvelopeChange={(envelope) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setLightSynthEnvelope(envelope)
+                        }
+                      }}
+                      onOscillatorChange={(oscillator) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setLightSynthOscillator(oscillator)
+                        }
+                      }}
+                    />
                   </div>
+                </details>
 
-                  <div>
-                    <label htmlFor="dark-reverb-wet" className="block text-xs mb-1">
-                      2. Wet/Dry Mix: {darkReverbWet}%
-                    </label>
-                    <input id="dark-reverb-wet" type="range" min="0" max="100" step="1" value={darkReverbWet}
-                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbWet(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbWet(val); }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
-                  </div>
+                {/* Reverb Section */}
+                <details open className="border border-blue-200 rounded-lg">
+                  <summary className="px-4 py-3 bg-blue-100 text-blue-900 cursor-pointer hover:bg-blue-200 transition-colors">
+                    <span className="font-semibold text-sm">🌊 Reverb</span>
+                  </summary>
+                  <div className="p-4 space-y-3 bg-blue-50">
+                    <div>
+                      <label htmlFor="light-reverb-decay" className="block text-sm font-medium mb-1">
+                        Decay Time: {lightReverbDecay.toFixed(1)}s
+                      </label>
+                      <input id="light-reverb-decay" type="range" min="0.1" max="10" step="0.1" value={lightReverbDecay}
+                        onChange={(e) => { const val = Number(e.target.value); setLightReverbDecay(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbDecay(val); }}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
 
-                  <div>
-                    <label htmlFor="dark-reverb-predelay" className="block text-xs mb-1">
-                      3. Pre-delay: {darkReverbPreDelay}ms
-                    </label>
-                    <input id="dark-reverb-predelay" type="range" min="0" max="200" step="1" value={darkReverbPreDelay}
-                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbPreDelay(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbPreDelay(val); }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
-                  </div>
+                    <div>
+                      <label htmlFor="light-reverb-wet" className="block text-sm font-medium mb-1">
+                        Wet/Dry Mix: {lightReverbWet}%
+                      </label>
+                      <input id="light-reverb-wet" type="range" min="0" max="100" step="1" value={lightReverbWet}
+                        onChange={(e) => { const val = Number(e.target.value); setLightReverbWet(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbWet(val); }}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
 
-                  <div>
-                    <label htmlFor="dark-reverb-roomsize" className="block text-xs mb-1">
-                      4. Room Size: {darkReverbRoomSize.toFixed(1)}
-                    </label>
-                    <input id="dark-reverb-roomsize" type="range" min="0.5" max="10.0" step="0.1" value={darkReverbRoomSize}
-                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbRoomSize(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbRoomSize(val); }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
-                  </div>
+                    <div>
+                      <label htmlFor="light-reverb-predelay" className="block text-sm font-medium mb-1">
+                        Pre-delay: {lightReverbPreDelay}ms
+                      </label>
+                      <input id="light-reverb-predelay" type="range" min="0" max="200" step="1" value={lightReverbPreDelay}
+                        onChange={(e) => { const val = Number(e.target.value); setLightReverbPreDelay(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbPreDelay(val); }}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
 
-                  <div>
-                    <label htmlFor="dark-reverb-damping" className="block text-xs mb-1">
-                      5. Damping: {darkReverbDamping}Hz
-                    </label>
-                    <input id="dark-reverb-damping" type="range" min="0" max="8000" step="100" value={darkReverbDamping}
-                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbDamping(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbDamping(val); }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
-                  </div>
+                    <div>
+                      <label htmlFor="light-reverb-roomsize" className="block text-sm font-medium mb-1">
+                        Room Size: {lightReverbRoomSize.toFixed(1)}
+                      </label>
+                      <input id="light-reverb-roomsize" type="range" min="0.5" max="10.0" step="0.1" value={lightReverbRoomSize}
+                        onChange={(e) => { const val = Number(e.target.value); setLightReverbRoomSize(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbRoomSize(val); }}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
 
-                  <div>
-                    <label htmlFor="dark-reverb-earlylate" className="block text-xs mb-1">
-                      6. Early/Late Balance: {darkReverbEarlyLate}%
-                    </label>
-                    <input id="dark-reverb-earlylate" type="range" min="0" max="100" step="1" value={darkReverbEarlyLate}
-                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbEarlyLate(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbEarlyLateBalance(val); }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
-                  </div>
+                    <div>
+                      <label htmlFor="light-reverb-damping" className="block text-sm font-medium mb-1">
+                        Damping: {lightReverbDamping}Hz
+                      </label>
+                      <input id="light-reverb-damping" type="range" min="0" max="8000" step="100" value={lightReverbDamping}
+                        onChange={(e) => { const val = Number(e.target.value); setLightReverbDamping(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbDamping(val); }}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
 
-                  <div>
-                    <label htmlFor="dark-reverb-width" className="block text-xs mb-1">
-                      7. Stereo Width: {darkReverbStereoWidth}%
-                    </label>
-                    <input id="dark-reverb-width" type="range" min="0" max="200" step="1" value={darkReverbStereoWidth}
-                      onChange={(e) => { const val = Number(e.target.value); setDarkReverbStereoWidth(val); if (audioEngine.current.initialized) audioEngine.current.setDarkReverbStereoWidth(val); }}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-                </div>
+                    <div>
+                      <label htmlFor="light-reverb-earlylate" className="block text-sm font-medium mb-1">
+                        Early/Late Balance: {lightReverbEarlyLate}%
+                      </label>
+                      <input id="light-reverb-earlylate" type="range" min="0" max="100" step="1" value={lightReverbEarlyLate}
+                        onChange={(e) => { const val = Number(e.target.value); setLightReverbEarlyLate(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbEarlyLateBalance(val); }}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
 
-                {/* Light Theme Effects - 7 Parameters */}
-                <div className="bg-blue-50 text-gray-800 p-3 rounded-lg space-y-3 border">
-                  <h4 className="font-semibold text-blue-600">☀️ Light Theme Reverb (Hi-hat + Light Melody)</h4>
-                  
-                  <div>
-                    <label htmlFor="light-reverb-decay" className="block text-xs mb-1">
-                      1. Decay Time: {lightReverbDecay.toFixed(1)}s
-                    </label>
-                    <input id="light-reverb-decay" type="range" min="0.1" max="10" step="0.1" value={lightReverbDecay}
-                      onChange={(e) => { const val = Number(e.target.value); setLightReverbDecay(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbDecay(val); }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    <div>
+                      <label htmlFor="light-reverb-width" className="block text-sm font-medium mb-1">
+                        Stereo Width: {lightReverbStereoWidth}%
+                      </label>
+                      <input id="light-reverb-width" type="range" min="0" max="200" step="1" value={lightReverbStereoWidth}
+                        onChange={(e) => { const val = Number(e.target.value); setLightReverbStereoWidth(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbStereoWidth(val); }}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
+                    </div>
                   </div>
-
-                  <div>
-                    <label htmlFor="light-reverb-wet" className="block text-xs mb-1">
-                      2. Wet/Dry Mix: {lightReverbWet}%
-                    </label>
-                    <input id="light-reverb-wet" type="range" min="0" max="100" step="1" value={lightReverbWet}
-                      onChange={(e) => { const val = Number(e.target.value); setLightReverbWet(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbWet(val); }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <div>
-                    <label htmlFor="light-reverb-predelay" className="block text-xs mb-1">
-                      3. Pre-delay: {lightReverbPreDelay}ms
-                    </label>
-                    <input id="light-reverb-predelay" type="range" min="0" max="200" step="1" value={lightReverbPreDelay}
-                      onChange={(e) => { const val = Number(e.target.value); setLightReverbPreDelay(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbPreDelay(val); }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <div>
-                    <label htmlFor="light-reverb-roomsize" className="block text-xs mb-1">
-                      4. Room Size: {lightReverbRoomSize.toFixed(1)}
-                    </label>
-                    <input id="light-reverb-roomsize" type="range" min="0.5" max="10.0" step="0.1" value={lightReverbRoomSize}
-                      onChange={(e) => { const val = Number(e.target.value); setLightReverbRoomSize(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbRoomSize(val); }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <div>
-                    <label htmlFor="light-reverb-damping" className="block text-xs mb-1">
-                      5. Damping: {lightReverbDamping}Hz
-                    </label>
-                    <input id="light-reverb-damping" type="range" min="0" max="8000" step="100" value={lightReverbDamping}
-                      onChange={(e) => { const val = Number(e.target.value); setLightReverbDamping(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbDamping(val); }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <div>
-                    <label htmlFor="light-reverb-earlylate" className="block text-xs mb-1">
-                      6. Early/Late Balance: {lightReverbEarlyLate}%
-                    </label>
-                    <input id="light-reverb-earlylate" type="range" min="0" max="100" step="1" value={lightReverbEarlyLate}
-                      onChange={(e) => { const val = Number(e.target.value); setLightReverbEarlyLate(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbEarlyLateBalance(val); }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-
-                  <div>
-                    <label htmlFor="light-reverb-width" className="block text-xs mb-1">
-                      7. Stereo Width: {lightReverbStereoWidth}%
-                    </label>
-                    <input id="light-reverb-width" type="range" min="0" max="200" step="1" value={lightReverbStereoWidth}
-                      onChange={(e) => { const val = Number(e.target.value); setLightReverbStereoWidth(val); if (audioEngine.current.initialized) audioEngine.current.setLightReverbStereoWidth(val); }}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" />
-                  </div>
-                </div>
+                </details>
               </div>
             )}
           </div>
