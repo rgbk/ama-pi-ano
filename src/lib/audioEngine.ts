@@ -590,4 +590,32 @@ export class AudioEngine {
     }
     this.debug(`☀️ Light synth oscillator: ${oscillator.type}`)
   }
+
+  // Dark synth portamento control
+  setDarkSynthPortamento(portamento: number) {
+    if (!this.initialized || !this.melodySynthDark) return
+    this.melodySynthDark.portamento = portamento
+    this.debug(`🌙 Dark synth portamento: ${portamento}s`)
+  }
+
+  // Dark synth detune control
+  setDarkSynthDetune(detune: number) {
+    if (!this.initialized || !this.melodySynthDark) return
+    this.melodySynthDark.detune.value = detune
+    this.debug(`🌙 Dark synth detune: ${detune} cents`)
+  }
+
+  // Light synth portamento control
+  setLightSynthPortamento(portamento: number) {
+    if (!this.initialized || !this.melodySynthLight) return
+    this.melodySynthLight.portamento = portamento
+    this.debug(`☀️ Light synth portamento: ${portamento}s`)
+  }
+
+  // Light synth detune control
+  setLightSynthDetune(detune: number) {
+    if (!this.initialized || !this.melodySynthLight) return
+    this.melodySynthLight.detune.value = detune
+    this.debug(`☀️ Light synth detune: ${detune} cents`)
+  }
 }

@@ -577,6 +577,16 @@ function App() {
                           audioEngine.current.setDarkSynthOscillator(oscillator)
                         }
                       }}
+                      onPortamentoChange={(portamento) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setDarkSynthPortamento(portamento)
+                        }
+                      }}
+                      onDetuneChange={(detune) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setDarkSynthDetune(detune)
+                        }
+                      }}
                     />
                   </div>
                 </details>
@@ -676,6 +686,16 @@ function App() {
                       onOscillatorChange={(oscillator) => {
                         if (audioEngine.current.initialized) {
                           audioEngine.current.setLightSynthOscillator(oscillator)
+                        }
+                      }}
+                      onPortamentoChange={(portamento) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setLightSynthPortamento(portamento)
+                        }
+                      }}
+                      onDetuneChange={(detune) => {
+                        if (audioEngine.current.initialized) {
+                          audioEngine.current.setLightSynthDetune(detune)
                         }
                       }}
                     />

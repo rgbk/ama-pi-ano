@@ -14,15 +14,17 @@ interface SynthControlsProps {
     type: OscillatorType
     partialCount?: number
   }) => void
+  onPortamentoChange?: (portamento: number) => void
+  onDetuneChange?: (detune: number) => void
 }
 
 type OscillatorType = 'sine' | 'square' | 'sawtooth' | 'triangle'
 
-export function SynthControls({ synthType, onEnvelopeChange, onOscillatorChange }: SynthControlsProps) {
+export function SynthControls({ synthType, onEnvelopeChange, onOscillatorChange, onPortamentoChange, onDetuneChange }: SynthControlsProps) {
   // Default values based on synth type
   const defaults = synthType === 'dark' 
-    ? { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.6, oscillator: 'sawtooth' as OscillatorType }
-    : { attack: 0.08, decay: 0.4, sustain: 0.7, release: 1.0, oscillator: 'sine' as OscillatorType }
+    ? { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.6, oscillator: 'sawtooth' as OscillatorType, portamento: 0, detune: 0 }
+    : { attack: 0.08, decay: 0.4, sustain: 0.7, release: 1.0, oscillator: 'sine' as OscillatorType, portamento: 0.05, detune: 0 }
 
   const [attack, setAttack] = useState(defaults.attack)
   const [decay, setDecay] = useState(defaults.decay)
@@ -30,6 +32,8 @@ export function SynthControls({ synthType, onEnvelopeChange, onOscillatorChange 
   const [release, setRelease] = useState(defaults.release)
   const [oscillatorType, setOscillatorType] = useState<OscillatorType>(defaults.oscillator)
   const [partialCount, setPartialCount] = useState(8)
+  const [portamento, setPortamento] = useState(defaults.portamento)
+  const [detune, setDetune] = useState(defaults.detune)
 
   const handleEnvelopeChange = (param: string, value: number) => {
     const newEnvelope = { attack, decay, sustain, release }
@@ -162,6 +166,40 @@ export function SynthControls({ synthType, onEnvelopeChange, onOscillatorChange 
             step={0.001}
             precision={3}
             unit="s"
+          />
+        </div>
+      </div>
+
+      {/* Portamento and Detune Section */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold text-gray-700">Pitch Controls</h4>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <DraggableNumberInput
+            label="Portamento"
+            value={portamento}
+            onChange={(v) => {
+              setPortamento(v)
+              onPortamentoChange?.(v)
+            }}
+            min={0}
+            max={1}
+            step={0.01}
+            precision={2}
+            unit="s"
+          />
+          <DraggableNumberInput
+            label="Detune"
+            value={detune}
+            onChange={(v) => {
+              setDetune(v)
+              onDetuneChange?.(v)
+            }}
+            min={-100}
+            max={100}
+            step={1}
+            precision={0}
+            unit="¢"
           />
         </div>
       </div>
