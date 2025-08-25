@@ -213,8 +213,10 @@ export class AudioEngine {
           release: 0.6
         }
       })
-      this.melodySynthDark.volume.value = -3 // Make melody more prominent
+      this.melodySynthDark.volume.value = -6 // Balanced with kick/hihat
       console.log('🎹 Dark melody synth (PolySynth) created:', this.melodySynthDark)
+      this.debug(`🔍 Dark PolySynth volume: ${this.melodySynthDark.volume.value}dB`)
+      this.debug(`🔍 Dark PolySynth state: ${this.melodySynthDark.state}`)
       
       // Light theme synth - bright, melodic sound  
       this.melodySynthLight = new PolySynth(Synth, {
@@ -226,8 +228,10 @@ export class AudioEngine {
           release: 1.0
         }
       })
-      this.melodySynthLight.volume.value = -3 // Make melody more prominent
+      this.melodySynthLight.volume.value = -6 // Balanced with kick/hihat
       console.log('🎹 Light melody synth (PolySynth) created:', this.melodySynthLight)
+      this.debug(`🔍 Light PolySynth volume: ${this.melodySynthLight.volume.value}dB`)
+      this.debug(`🔍 Light PolySynth state: ${this.melodySynthLight.state}`)
       
       // Create advanced theme-based reverbs
       console.log('🎛️ Creating advanced theme reverbs...')
@@ -264,10 +268,12 @@ export class AudioEngine {
     
     const testSynth = this.currentTheme === 'dark' ? this.melodySynthDark : this.melodySynthLight
     this.debug(`🧪 Testing ${this.currentTheme} melody synth directly...`)
+    this.debug(`🔍 Synth volume: ${testSynth.volume.value}dB`)
+    this.debug(`🔍 Synth state: ${testSynth.state}`)
     
     try {
       testSynth.triggerAttackRelease('C4', '2n')
-      this.debug('🧪 Test tone triggered - should hear C4 for 2 seconds')
+      this.debug('🧪 Test tone triggered - should hear LOUD C4 for 2 seconds')
     } catch (error) {
       this.debug(`❌ Test failed: ${error}`)
     }
@@ -364,9 +370,24 @@ export class AudioEngine {
           }
           
           try {
+            this.debug(`🔍 About to play: ${note} on ${synthType}`)
+            this.debug(`🔍 Synth volume: ${activeSynth.volume.value}dB`)
+            this.debug(`🔍 Synth state: ${activeSynth.state}`)
+            this.debug(`🔍 Synth type: ${activeSynth.constructor.name}`)
+            
             activeSynth.triggerAttackRelease(note, '8n', triggerTime)
-            // Only log melody notes, not the detailed synth info
-            this.debug(`🎼 ${digit}=${note} (${synthType})`)
+            
+            this.debug(`🎼 ${digit}=${note} (${synthType}) - TRIGGERED`)
+            
+            // Check if synth is making sound by checking active voices
+            setTimeout(() => {
+              if (activeSynth.activeVoices && activeSynth.activeVoices > 0) {
+                this.debug(`✅ Active voices: ${activeSynth.activeVoices}`)
+              } else {
+                this.debug(`⚠️ No active voices detected - sound may not be playing`)
+              }
+            }, 50)
+            
           } catch (synthError) {
             this.debug(`❌ Digit ${digit}: Failed - ${synthError}`)
           }

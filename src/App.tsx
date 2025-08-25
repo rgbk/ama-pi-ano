@@ -137,11 +137,36 @@ function App() {
         setShowSettings(true)
         setActiveTab('debug')
       }
+      
+      // Debug keys - trigger synths directly
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault()
+        
+        // Update theme if 0 or 1 pressed
+        if (e.key === '0') {
+          setCurrentTheme('dark')
+          addDebugEvent('🌙 Manual key 0: Switched to DARK theme')
+        } else if (e.key === '1') {
+          setCurrentTheme('light')
+          addDebugEvent('☀️ Manual key 1: Switched to LIGHT theme')
+        }
+        
+        // Initialize audio if needed
+        if (!audioEngine.current.initialized) {
+          audioEngine.current.initialize().then(() => {
+            addDebugEvent(`🎹 Manual key: ${e.key}`)
+            audioEngine.current.playDigit(e.key)
+          })
+        } else {
+          addDebugEvent(`🎹 Manual key: ${e.key}`)
+          audioEngine.current.playDigit(e.key)
+        }
+      }
     }
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isPlaying, showSettings, showFPS])
+  }, [isPlaying, showSettings, showFPS, addDebugEvent])
 
   // Playback timer effect
   useEffect(() => {
@@ -374,6 +399,7 @@ function App() {
                   <p><kbd>P</kbd> - Settings panel</p>
                   <p><kbd>F</kbd> - Show FPS stats</p>
                   <p><kbd>D</kbd> - Debug panel</p>
+                  <p><kbd>0-9</kbd> - Manual synth trigger (debug)</p>
                 </div>
               </div>
             )}
