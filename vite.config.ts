@@ -12,9 +12,9 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'VibeCodeStack App',
-        short_name: 'VibeApp',
-        description: 'Built with VibeCodeStack template',
+        name: 'πano - Pi Musical Explorer',
+        short_name: 'πano',
+        description: 'Transform π digits into beautiful chord progressions',
         theme_color: '#000000',
         background_color: '#ffffff',
         display: 'standalone',
